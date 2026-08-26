@@ -1,0 +1,34 @@
+}if(freeze)incident(Math.max(tx.loss||0,rx.loss||0)>2?'Congelación por pérdida de paquetes.':'Congelación detectada; WebRTC recuperó el flujo.');let score=100,b='Sin cuello de botella detectado.',loss=Math.max(tx.loss||0,rx.loss||0),jit=Math.max(tx.jitter||0,rx.jitter||0);score-=Math.min(48,loss*8);if(jit>20)score-=Math.min(22,(jit-20)/3);if(rtt>300)score-=Math.min(18,(rtt-300)/15);if(tx.reason==='cpu'){score-=28;b='Cuello de botella probable: codificador de este dispositivo.'}else if(tx.reason==='bandwidth'){score-=30;b='Cuello de botella probable: subida local o ruta de salida.'}else if(loss>2)b='Cuello de botella probable: ruta de Internet entre ambos dispositivos.';if(session.remote&&Date.now()-session.remote.receivedAt<6000&&session.remote.online===false)b='El dispositivo remoto ha perdido conectividad.';score=Math.max(0,Math.min(100,score));setTxt('#v6Score',String(Math.round(score)));setTxt('#v6Health',score>=90?'Excelente':score>=72?'Estable':score>=50?'Bajo presión':'Inestable');setTxt('#v6Bottleneck',b);const bar=$('#v6Bar');if(bar)bar.style.width=`${score}%`;renderSession();send({lumaTelemetry:{online:navigator.onLine!==false,reason:tx.reason,loss,jitter:jit,rtt,score,ts:Date.now()}})}
+function updateInviteText(){const e=$('#inviteUrlText');if(e&&params().get('room'))e.textContent=inviteUrl()}
+function invitePatch(){const modal=$('#inviteModal'),row=modal?.querySelector('.invite-url');if(!modal||!row)return;modal.querySelector('.eyebrow')?.lastChild&&(modal.querySelector('.eyebrow').lastChild.textContent=' INVITACIÓN PRIVADA');const h=modal.querySelector('h3');if(h)h.textContent='Invita a quien quieras.';const p=modal.querySelector('p');if(p)p.textContent='Envía este enlace por WhatsApp. La otra persona solo tiene que abrirlo y entrar.';if(!$('#whatsappInviteBtn')){const b=document.createElement('button');b.id='whatsappInviteBtn';b.className='invite-url-action whatsapp-action';b.title='Enviar por WhatsApp';b.innerHTML='<svg viewBox="0 0 24 24"><path d="M20 11.8a8 8 0 0 1-11.9 7L4 20l1.2-4A8 8 0 1 1 20 11.8Z" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M8.2 7.9c.3-.6.7-.6 1-.6h.4c.1 0 .3 0 .4.4l.8 1.9c.1.3.1.5-.1.7l-.6.7c-.2.2-.3.4-.1.7.5 1 1.2 1.8 2.1 2.4.3.2.5.2.7 0l.9-1c.2-.2.4-.3.7-.2l2 .9c.3.1.4.3.4.5 0 .3-.2 1.5-1 2.1" fill="currentColor"/></svg>';row.appendChild(b);b.addEventListener('click',e=>{e.preventDefault();e.stopImmediatePropagation();location.href=`https://wa.me/?text=${encodeURIComponent(`Únete a mi videollamada privada:\n${inviteUrl()}\n\nNo necesitas registrarte ni instalar nada.`)}`},true)}
+for(const id of ['copyInviteBtn','nativeShareBtn','waitingShareBtn','shareMiniBtn'])$(id)?.addEventListener('click',async e=>{e.preventDefault();e.stopImmediatePropagation();const u=inviteUrl();if(id==='copyInviteBtn'){try{await navigator.clipboard.writeText(u)}catch{};return}if(navigator.share)try{await navigator.share({title:'Videollamada privada · LUMA',text:'Únete a mi videollamada privada.',url:u})}catch{}},true);updateInviteText()}
+function spanish(){
+  document.title='LUMA — Videollamada P2P';
+  const text=(sel,val)=>{const e=$(sel);if(e)e.textContent=val};
+  const tail=(sel,val)=>{const e=$(sel);if(!e)return;const n=[...e.childNodes].findLast?.(x=>x.nodeType===3)||[...e.childNodes].reverse().find(x=>x.nodeType===3);if(n)n.nodeValue=` ${val}`;else e.append(document.createTextNode(` ${val}`))};
+  text('.privacy-chip span:last-child','P2P PRIVADO');
+  tail('.home-view .eyebrow','Directo. Cifrado. Tuyo.');
+  const hero=$('.hero-copy h1');if(hero)hero.innerHTML='Más cerca<br><span>de lo que parece.</span>';
+  text('.trust-item:nth-of-type(3) span','Modo EXTREMO');
+  tail('.preview-badge','VISTA PREVIA');
+  tail('.setup-heading .eyebrow','CONFIGURACIÓN');
+  text('.mode-btn[data-mode="xtreme"] span','EXTREMO');
+  text('.xtreme-head strong','MOTOR EXTREMO');
+  text('.camera-auto-badge','EN DIRECTO');
+  tail('.live-pill','EN DIRECTO');
+  text('.mini-live','LISTO');
+  text('.phone-footer>div:first-child small','RUTA');
+  tail('.phone-footer>div:first-child strong','DIRECTA');
+  text('.phone-footer>div:last-child small','MODO');
+  text('.phone-footer>div:last-child strong','EXTREMO');
+  text('.floating-stat.stat-one span','CALIDAD');
+  text('.floating-stat.stat-two span','VÍDEO');
+  text('.pip-label','TÚ');
+  text('.route-pill small','RUTA');
+  const x=$('#xtremeStatusLabel');if(x)x.textContent=mode()==='xtreme'?'ACTIVO':'DESACTIVADO';
+  const b=$('#liveModeBadge');if(b)b.textContent=mode()==='xtreme'?'EXTREMO':'AUTO';
+  const route=$('#routeText');if(route){const m={DIRECT:'DIRECTA',RELAY:'RELEVO',CONNECTING:'CONECTANDO',WAITING:'ESPERANDO',FAILED:'ERROR'};route.textContent=m[route.textContent.trim()]||route.textContent}
+}
+function init(){wrapPC();wrapSDK();spanish();$('.camera-auto-block')?.setAttribute('hidden','');$('#callLensRow')?.setAttribute('hidden','');injectFullscreen();injectStats();invitePatch();setupMode();installPinch();interceptFlip();$('#callView')?.addEventListener('pointerup',()=>mediaOnly&&peek());document.addEventListener('fullscreenchange',()=>{if(!document.fullscreenElement&&mediaOnly){mediaOnly=false;$('#callView')?.classList.remove('media-only','controls-peek')}});setInterval(()=>{spanish();cameraHud();updateInviteText();if(mode()==='xtreme')applyExtreme();collect().catch(()=>{})},1000)}
+if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>setTimeout(init,50),{once:true});else setTimeout(init,50);
+})();
