@@ -1,0 +1,80 @@
+    return `${Math.round(n / 1024)} KB`;
+  }
+
+  function recordIncident(message) {
+    if (!state.active) return;
+    state.session.cuts++;
+    state.session.last = `${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })} · ${message}`;
+    ui.statInterruptions.textContent = String(state.session.cuts);
+    ui.statIncidentCount.textContent = String(state.session.cuts);
+    ui.statLastIncident.textContent = state.session.last;
+  }
+
+  async function collectStats() {
+    let tx = { bps: null, w: null, h: null, fps: null, loss: null, jitter: null, codec: 'WebRTC', reason: 'none' };
+    let rx = { bps: null, w: null, h: null, fps: null, loss: null, jitter: null, codec: 'WebRTC' };
+    let rtt = null, route = null;
+    for (const pc of state.pcs) {
+      if (pc.connectionState === 'closed') continue;
+      let report; try { report = await pc.getStats(); } catch { continue; }
+      const byId = new Map(); report.forEach(x => byId.set(x.id, x));
+      report.forEach(x => {
+        const k = `${pc.__lumaId || 0}:${x.id}`;
+        if (x.type === 'candidate-pair' && x.state === 'succeeded' && (x.nominated || x.selected)) {
+          const local = byId.get(x.localCandidateId), remote = byId.get(x.remoteCandidateId);
+          route = { relay: local?.candidateType === 'relay' || remote?.candidateType === 'relay', local: local?.candidateType || '?', remote: remote?.candidateType || '?', protocol: local?.protocol || remote?.protocol || '' };
+          if (Number.isFinite(x.currentRoundTripTime)) rtt = x.currentRoundTripTime * 1000;
+        }
+        if (x.type === 'outbound-rtp' && x.kind === 'video' && !x.isRemote) {
+          const prev = state.prevStats.get(k);
+          if (prev && x.timestamp > prev.t && x.bytesSent >= prev.b) tx.bps = ((x.bytesSent - prev.b) * 8000) / (x.timestamp - prev.t);
+          state.prevStats.set(k, { b: x.bytesSent || 0, t: x.timestamp });
+          const base = state.byteBaselines.get(k); if (Number.isFinite(base) && x.bytesSent >= base) state.session.sent += x.bytesSent - base; state.byteBaselines.set(k, x.bytesSent || 0);
+          tx.w = x.frameWidth; tx.h = x.frameHeight; tx.fps = x.framesPerSecond; tx.reason = x.qualityLimitationReason || 'none';
+          const c = byId.get(x.codecId); if (c?.mimeType) tx.codec = c.mimeType.replace('video/', '');
+        }
+        if (x.type === 'inbound-rtp' && x.kind === 'video' && !x.isRemote) {
+          const rk = `${k}:rx`, prev = state.prevStats.get(rk);
+          if (prev && x.timestamp > prev.t && x.bytesReceived >= prev.b) rx.bps = ((x.bytesReceived - prev.b) * 8000) / (x.timestamp - prev.t);
+          state.prevStats.set(rk, { b: x.bytesReceived || 0, t: x.timestamp });
+          const base = state.byteBaselines.get(rk); if (Number.isFinite(base) && x.bytesReceived >= base) state.session.recv += x.bytesReceived - base; state.byteBaselines.set(rk, x.bytesReceived || 0);
+          rx.w = x.frameWidth; rx.h = x.frameHeight; rx.fps = x.framesPerSecond;
+          if (Number.isFinite(x.jitter)) rx.jitter = x.jitter * 1000;
+          const total = (x.packetsLost || 0) + (x.packetsReceived || 0); if (total > 0) rx.loss = ((x.packetsLost || 0) / total) * 100;
+          const c = byId.get(x.codecId); if (c?.mimeType) rx.codec = c.mimeType.replace('video/', '');
+          if (Number.isFinite(x.freezeCount)) { const prevFreeze = state.freezeBaselines.get(rk); if (Number.isFinite(prevFreeze) && x.freezeCount > prevFreeze) recordIncident('Se detectó una congelación del vídeo recibido.'); state.freezeBaselines.set(rk, x.freezeCount); }
+        }
+        if (x.type === 'remote-inbound-rtp' && x.kind === 'video') {
+          const total = (x.packetsLost || 0) + (x.packetsReceived || 0); if (total > 0) tx.loss = ((x.packetsLost || 0) / total) * 100;
+          if (Number.isFinite(x.jitter)) tx.jitter = x.jitter * 1000;
+          if (Number.isFinite(x.roundTripTime) && rtt == null) rtt = x.roundTripTime * 1000;
+        }
+      });
+    }
+    if (route) setRoute(route.relay ? 'RELAY' : 'DIRECTA', `${route.local} ↔ ${route.remote}${route.protocol ? ` · ${route.protocol.toUpperCase()}` : ''}`);
+    if (Number.isFinite(tx.bps)) { state.session.txMin = Math.min(state.session.txMin, tx.bps); state.session.txMax = Math.max(state.session.txMax, tx.bps); }
+    if (Number.isFinite(rx.bps)) { state.session.rxMin = Math.min(state.session.rxMin, rx.bps); state.session.rxMax = Math.max(state.session.rxMax, rx.bps); }
+    if (Number.isFinite(rtt)) { state.session.rttMin = Math.min(state.session.rttMin, rtt); state.session.rttMax = Math.max(state.session.rttMax, rtt); state.session.rttSum += rtt; state.session.rttN++; }
+    renderStats(tx, rx, rtt);
+  }
+
+  function renderStats(tx, rx, rtt) {
+    const set = (el, value) => { if (el) el.textContent = value; };
+    const localSettings = currentVideoTrack()?.getSettings?.() || {};
+    const txRes = tx.w && tx.h ? `${tx.w}×${tx.h}` : localSettings.width && localSettings.height ? `${localSettings.width}×${localSettings.height}` : '—';
+    const rxRes = rx.w && rx.h ? `${rx.w}×${rx.h}` : '—';
+    set(ui.statTxResolution, txRes); set(ui.statTxCodec, tx.codec); set(ui.statTxBitrate, formatRate(tx.bps)); set(ui.statTxFps, tx.fps ? `${Math.round(tx.fps)} FPS` : '—'); set(ui.statTxLoss, Number.isFinite(tx.loss) ? `${tx.loss.toFixed(tx.loss < 1 ? 2 : 1)}%` : '—'); set(ui.statTxJitter, Number.isFinite(tx.jitter) ? `${Math.round(tx.jitter)} ms` : '—');
+    set(ui.statTxLimit, tx.reason === 'none' ? 'Sin limitación' : tx.reason === 'bandwidth' ? 'Ancho de banda' : tx.reason === 'cpu' ? 'Codificador / CPU' : String(tx.reason));
+    set(ui.statRxResolution, rxRes); set(ui.statRxCodec, rx.codec); set(ui.statRxBitrate, formatRate(rx.bps)); set(ui.statRxFps, rx.fps ? `${Math.round(rx.fps)} FPS` : '—'); set(ui.statRxLoss, Number.isFinite(rx.loss) ? `${rx.loss.toFixed(rx.loss < 1 ? 2 : 1)}%` : '—'); set(ui.statRxJitter, Number.isFinite(rx.jitter) ? `${Math.round(rx.jitter)} ms` : '—');
+    set(ui.statDataTotal, formatBytes(state.session.sent + state.session.recv)); set(ui.statDataBreakdown, `↑ ${formatBytes(state.session.sent)} · ↓ ${formatBytes(state.session.recv)}`);
+    set(ui.statTxBitrateRange, Number.isFinite(state.session.txMin) ? `${formatRate(state.session.txMin)} / ${formatRate(state.session.txMax)}` : '—');
+    set(ui.statRxBitrateRange, Number.isFinite(state.session.rxMin) ? `${formatRate(state.session.rxMin)} / ${formatRate(state.session.rxMax)}` : '—');
+    set(ui.statRttRange, Number.isFinite(state.session.rttMin) ? `${Math.round(state.session.rttMin)} / ${Math.round(state.session.rttMax)} ms` : '—');
+    set(ui.statRttAverage, state.session.rttN ? `Media ${Math.round(state.session.rttSum / state.session.rttN)} ms` : 'Media —');
+    set(ui.actualQuality, `${txRes}${tx.fps ? ` · ${Math.round(tx.fps)} FPS` : ''}`);
+    const loss = Math.max(tx.loss || 0, rx.loss || 0), jitter = Math.max(tx.jitter || 0, rx.jitter || 0);
+    let score = 100, diagnosis = 'Sin cuello de botella detectado.';
+    score -= Math.min(48, loss * 8); if (jitter > 20) score -= Math.min(22, (jitter - 20) / 3); if (Number.isFinite(rtt) && rtt > 300) score -= Math.min(18, (rtt - 300) / 15);
+    if (tx.reason === 'cpu') { score -= 28; diagnosis = 'Cuello de botella probable: codificador de este dispositivo.'; }
+    else if (tx.reason === 'bandwidth') { score -= 30; diagnosis = 'Cuello de botella probable: subida local o ruta de salida.'; }
+    else if (loss > 2) diagnosis = 'Cuello de botella probable: ruta de Internet entre ambos dispositivos.';
