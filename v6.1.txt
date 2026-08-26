@@ -1,0 +1,28 @@
+(() => {
+'use strict';
+const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
+const pcs=new Set(); let sdk=null, applyingRemote=false, mediaOnly=false, hideTimer=0, pcSeq=0;
+const session={sent:0,recv:0,prevBytes:new Map(),prevRate:new Map(),prevFreeze:new Map(),txMin:Infinity,txMax:0,rxMin:Infinity,rxMax:0,rttMin:Infinity,rttMax:0,rttSum:0,rttN:0,cuts:0,last:'Sin cortes detectados.',remote:null};
+const fmtRate=n=>!Number.isFinite(n)?'—':n>=1e9?`${(n/1e9).toFixed(2)} Gb/s`:n>=1e6?`${(n/1e6).toFixed(n>=1e7?1:2)} Mb/s`:n>=1e3?`${Math.round(n/1e3)} kb/s`:`${Math.round(n)} b/s`;
+const fmtBytes=n=>!Number.isFinite(n)||n<=0?'0 MB':n>=1073741824?`${(n/1073741824).toFixed(2)} GB`:n>=1048576?`${(n/1048576).toFixed(n>104857600?0:1)} MB`:`${Math.round(n/1024)} KB`;
+const mode=()=>$('.mode-btn[data-mode="xtreme"]')?.classList.contains('active')?'xtreme':'normal';
+const callActive=()=>$('#callView')?.classList.contains('active');
+const localTrack=()=>$('#localVideo')?.srcObject?.getVideoTracks?.()[0]||$('#previewVideo')?.srcObject?.getVideoTracks?.()[0]||null;
+function params(){try{return new URLSearchParams(location.hash.slice(1))}catch{return new URLSearchParams()}}
+function inviteUrl(){const p=params(); if(p.get('room')&&p.get('key'))p.set('mode',mode()); return `${location.href.split('#')[0]}#${p}`}
+function syncHash(){const p=params();if(!p.get('room')||!p.get('key'))return;p.set('mode',mode());history.replaceState(null,'',`${location.pathname}${location.search}#${p}`);updateInviteText()}
+function send(data){try{const r=sdk?.sendData?.(data);r?.catch?.(()=>{})}catch{}}
+function sendMode(){send({lumaControl:{type:'mode',mode:mode(),ts:Date.now()}})}
+function applyRemoteMode(m){if(!['normal','xtreme'].includes(m)||m===mode())return;const b=$(`.mode-btn[data-mode="${m}"]`);if(!b)return;applyingRemote=true;b.click();setTimeout(()=>applyingRemote=false,150)}
+function handleData(e){let d=e?.detail?.data??e?.detail;if(typeof d==='string')try{d=JSON.parse(d)}catch{return}if(d?.lumaControl?.type==='mode')applyRemoteMode(d.lumaControl.mode);if(d?.lumaTelemetry)session.remote={...d.lumaTelemetry,receivedAt:Date.now()}}
+function wrapSDK(){const N=window.VDONinjaSDK;if(typeof N!=='function'||window.__lumaV6SDK)return;window.VDONinjaSDK=new Proxy(N,{construct(t,a,n){const x=Reflect.construct(t,a,n);sdk=x;x.addEventListener?.('data',handleData);x.addEventListener?.('dataReceived',handleData);x.addEventListener?.('peerConnected',()=>setTimeout(()=>{sendMode();applyExtreme()},500));return x}});window.__lumaV6SDK=1}
+function wrapPC(){const N=window.RTCPeerConnection;if(!N||window.__lumaV6PC)return;window.RTCPeerConnection=new Proxy(N,{construct(t,a,n){const pc=Reflect.construct(t,a,n);pc.__luma6=++pcSeq;pcs.add(pc);pc.addEventListener('connectionstatechange',()=>{if(pc.connectionState==='closed')pcs.delete(pc);if(callActive()&&(pc.connectionState==='disconnected'||pc.connectionState==='failed'))incident(pc.connectionState==='failed'?'WebRTC perdió la ruta y está recuperándola.':'La ruta entre ambos dispositivos se interrumpió temporalmente.')});return pc}});window.__lumaV6PC=1}
+async function applyExtreme(){if(mode()!=='xtreme')return;const t=localTrack();if(t){let c={};try{c=t.getCapabilities?.()||{}}catch{};const w=c.width?.max||3840,h=c.height?.max||2160,f=c.frameRate?.max||120;try{await t.applyConstraints({width:{ideal:w},height:{ideal:h},frameRate:{ideal:f,max:f},resizeMode:'none'})}catch{try{await t.applyConstraints({width:{ideal:3840},height:{ideal:2160},frameRate:{ideal:120}})}catch{}}try{t.contentHint='detail'}catch{}}
+for(const pc of pcs)for(const s of pc.getSenders?.()||[]){if(s.track?.kind!=='video'||!s.getParameters||!s.setParameters)continue;try{const p=s.getParameters();if(!p.encodings?.length)p.encodings=[{}];for(const e of p.encodings){e.maxBitrate=1_000_000_000;e.maxFramerate=120;e.scaleResolutionDownBy=1;try{e.priority='high';e.networkPriority='high'}catch{}}try{p.degradationPreference='maintain-resolution'}catch{}await s.setParameters(p)}catch{}}}
+function setupMode(){const wanted=params().get('mode');if(['normal','xtreme'].includes(wanted))setTimeout(()=>{const b=$(`.mode-btn[data-mode="${wanted}"]`);if(b&&mode()!==wanted){applyingRemote=true;b.click();setTimeout(()=>applyingRemote=false,150)}},200);
+$$('.mode-btn').forEach(b=>b.addEventListener('click',()=>setTimeout(()=>{const ext=b.dataset.mode==='xtreme',d=$('#directOnlyToggle');if(d&&d.checked!==ext){d.checked=ext;d.dispatchEvent(new Event('change',{bubbles:true}))}syncHash();spanish();if(ext)applyExtreme();if(!applyingRemote)sendMode()},0)));
+$('#callXtremeBtn')?.addEventListener('click',()=>setTimeout(()=>{syncHash();if(mode()==='xtreme')applyExtreme();if(!applyingRemote)sendMode()},0));}
+function zoomCaps(){try{const z=localTrack()?.getCapabilities?.().zoom;return z&&Number.isFinite(z.min)&&Number.isFinite(z.max)?z:null}catch{return null}}
+function cameraOptions(){return [...($('#cameraSelect')?.options||[])]}
+function front(o){return /front|frontal|facetime|user/i.test(o?.textContent||'')}
+async function fallbackLens(z){const sel=$('#cameraSelect');if(!sel)return;const opts=cameraOptions().filter(o=>!front(o));let w=z<.85?opts.find(o=>/ultra|0[,.]5/i.test(o.textContent)):z>=2.4?opts.find(o=>/tele|3x|5x/i.test(o.textContent)):opts.find(o=>/back|rear|trasera|principal|wide/i.test(o.textContent)&&!/ultra|tele/i.test(o.textContent));if(w&&sel.value!==w.value){sel.value=w.value;sel.dispatchEvent(new Event('change',{bub
