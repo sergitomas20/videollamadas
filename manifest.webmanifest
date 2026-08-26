@@ -1,7 +1,7 @@
 {
-  "name": "LUMA — Private P2P Video",
+  "name": "LUMA — Videollamada P2P",
   "short_name": "LUMA",
-  "description": "Videollamadas privadas P2P con modo XTREME.",
+  "description": "Videollamadas privadas P2P con modos AUTO y EXTREMO.",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
