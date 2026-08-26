@@ -1,2 +1,100 @@
 @import url("./styles-a.css");
 @import url("./styles-b.css");
+
+/* =========================================================
+   LUMA — ajustes móviles de interfaz (v11)
+   ========================================================= */
+
+/* El indicador de zoom de la vista previa debe ser un chip pequeño.
+   Se coloca por encima de la fila inferior para no pisar CAPTURA REAL
+   ni los botones de micrófono/cámara. */
+.preview-zoom-hud{
+  left:50%!important;
+  bottom:88px!important;
+  width:auto!important;
+  min-width:54px!important;
+  max-width:82px!important;
+  min-height:30px!important;
+  padding:7px 10px!important;
+  border-radius:999px!important;
+  display:flex!important;
+  align-items:center!important;
+  justify-content:center!important;
+  flex-direction:row!important;
+  gap:0!important;
+  background:rgba(5,6,10,.68)!important;
+  border:1px solid rgba(255,255,255,.12)!important;
+  -webkit-backdrop-filter:blur(16px) saturate(1.2)!important;
+  backdrop-filter:blur(16px) saturate(1.2)!important;
+  box-shadow:0 8px 24px rgba(0,0,0,.28)!important;
+  pointer-events:none!important;
+}
+.preview-zoom-hud strong{
+  font-size:13px!important;
+  line-height:1!important;
+  font-weight:800!important;
+  white-space:nowrap!important;
+}
+.preview-zoom-hud small{
+  display:none!important;
+}
+.preview-zoom-hud.active{
+  transform:translateX(-50%) scale(1.04)!important;
+}
+
+/* Mientras todavía no hay participante remoto, el HUD de cámara no debe
+   ocupar la misma zona que el botón de compartir invitación. */
+.call-canvas:has(.remote-waiting:not(.hidden)) .camera-hud{
+  display:none!important;
+}
+
+/* El contenido de espera siempre queda por encima de cualquier decoración. */
+.call-canvas .remote-waiting{
+  z-index:8!important;
+}
+.call-canvas .remote-waiting .share-call-btn{
+  position:relative!important;
+  z-index:9!important;
+}
+
+/* HUD de cámara más compacto cuando la videollamada ya está activa. */
+@media(max-width:900px){
+  .camera-hud{
+    padding:4px 7px!important;
+    gap:0!important;
+    border-radius:999px!important;
+  }
+  .camera-hud-side{
+    min-width:0!important;
+    max-width:118px!important;
+    height:30px!important;
+    padding:0 9px!important;
+    margin-right:5px!important;
+  }
+  .camera-hud-side span{
+    font-size:7px!important;
+  }
+  .camera-hud-side small{
+    font-size:6px!important;
+    max-width:90px!important;
+  }
+  .zoom-readout{
+    min-width:34px!important;
+    height:30px!important;
+    padding:0 6px!important;
+    font-size:9px!important;
+  }
+}
+
+@media(max-width:560px){
+  .preview-zoom-hud{
+    bottom:84px!important;
+    min-width:50px!important;
+    max-width:72px!important;
+    min-height:28px!important;
+    padding:6px 9px!important;
+  }
+  .preview-zoom-hud strong{
+    font-size:12px!important;
+  }
+}
