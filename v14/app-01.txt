@@ -1,0 +1,137 @@
+(() => {
+  'use strict';
+
+  const $ = (id) => document.getElementById(id);
+  const $$ = (sel) => [...document.querySelectorAll(sel)];
+
+  const ui = Object.fromEntries([
+    'homeView','prejoinView','callView','brandBtn','createCallBtn','openJoinBtn','cameraStage','previewVideo','videoEmpty','flipCameraBtn','previewZoomHud','previewZoomValue','captureSummary','preMicBtn','preCamBtn','prejoinTitle','prejoinSubtitle','qualityHint','xtremeCard','directOnlyToggle','enterCallBtn','enterCallText','cancelPrejoinBtn','callMedia','remoteVideo','remoteWaiting','waitingShareBtn','callDuration','routePill','routeText','localPip','localVideo','cameraHud','activeCameraSide','zoomReadout','callMicBtn','callCamBtn','callFlipBtn','callXtremeBtn','fullscreenBtn','endCallBtn','shareMiniBtn','statsPanel','statTxResolution','statTxCodec','statTxBitrate','statTxFps','statTxLoss','statTxJitter','statTxLimit','statRxResolution','statRxCodec','statRxBitrate','statRxFps','statRxLoss','statRxJitter','statDataTotal','statDataBreakdown','statTxBitrateRange','statRxBitrateRange','statRttRange','statRttAverage','statInterruptions','statHealth','statBottleneck','statHealthScore','statHealthBar','statLastIncident','statIncidentCount','statRouteDot','statRoute','statCandidates','requestedQuality','actualQuality','inviteModal','closeInviteBtn','inviteUrlText','copyInviteBtn','whatsappInviteBtn','nativeShareBtn','joinModal','closeJoinBtn','joinLinkInput','joinFromLinkBtn','toast','toastText'
+  ].map(id => [id, $(id)]));
+
+  const PROFILES = {
+    normal: { label: 'AUTO', width: 1920, height: 1080, fps: 30, maxFps: 60, bitrate: 25_000_000 },
+    xtreme: { label: 'EXTREMO', width: 3840, height: 2160, fps: 60, maxFps: 120, bitrate: 1_000_000_000 }
+  };
+
+  const state = {
+    view: 'home', host: false, room: '', key: '', inviteUrl: '', mode: 'normal', directOnly: false,
+    facing: 'user', lastDevice: { user: '', environment: '' }, cameras: [], logicalZoom: 1,
+    micEnabled: true, camEnabled: true, localStream: null, remoteStream: new MediaStream(),
+    sdk: null, streamID: '', viewed: new Set(), active: false, entering: false, mediaOnly: false,
+    pcs: new Set(), pcCounter: 0, durationTimer: 0, statsTimer: 0, wakeLock: null,
+    prevStats: new Map(), byteBaselines: new Map(), freezeBaselines: new Map(),
+    session: { sent: 0, recv: 0, txMin: Infinity, txMax: 0, rxMin: Infinity, rxMax: 0, rttMin: Infinity, rttMax: 0, rttSum: 0, rttN: 0, cuts: 0, last: 'Sin cortes detectados.' },
+    pinch: { active: false, source: '', startDistance: 0, startZoom: 1, pendingZoom: 1, safariGesture: false },
+    toastTimer: 0
+  };
+
+  // Track every peer connection created by the SDK. This gives us robust stats and track replacement fallback.
+  if (window.RTCPeerConnection && !window.__lumaV14PcPatched) {
+    try {
+      const NativePC = window.RTCPeerConnection;
+      window.RTCPeerConnection = new Proxy(NativePC, {
+        construct(target, args, newTarget) {
+          const pc = Reflect.construct(target, args, newTarget);
+          pc.__lumaId = ++state.pcCounter;
+          state.pcs.add(pc);
+          pc.addEventListener('connectionstatechange', () => {
+            if (pc.connectionState === 'closed') state.pcs.delete(pc);
+            if (!state.active) return;
+            if (pc.connectionState === 'failed') recordIncident('WebRTC perdió la ruta de red.');
+            if (pc.connectionState === 'disconnected') recordIncident('La ruta se interrumpió temporalmente.');
+          });
+          return pc;
+        }
+      });
+      window.__lumaV14PcPatched = true;
+    } catch (err) { console.warn('No se pudo instrumentar RTCPeerConnection', err); }
+  }
+
+  function showToast(message, type = 'ok') {
+    if (!ui.toast) return;
+    ui.toastText.textContent = message;
+    const dot = ui.toast.querySelector('i');
+    if (dot) dot.style.background = type === 'error' ? '#ff5469' : type === 'warn' ? '#ffb75e' : '#66efb2';
+    ui.toast.classList.add('show');
+    clearTimeout(state.toastTimer);
+    state.toastTimer = setTimeout(() => ui.toast.classList.remove('show'), 2400);
+  }
+
+  function setModal(modal, open) {
+    if (!modal) return;
+    modal.classList.toggle('open', open);
+    modal.setAttribute('aria-hidden', open ? 'false' : 'true');
+  }
+
+  function setView(name) {
+    state.view = name;
+    for (const v of [ui.homeView, ui.prejoinView, ui.callView]) v?.classList.remove('active');
+    ({ home: ui.homeView, prejoin: ui.prejoinView, call: ui.callView })[name]?.classList.add('active');
+    window.scrollTo({ top: 0, behavior: 'instant' });
+  }
+
+  function randomId(prefix = '') {
+    const bytes = new Uint8Array(18); crypto.getRandomValues(bytes);
+    const chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_';
+    return prefix + [...bytes].map(v => chars[v % chars.length]).join('');
+  }
+  function randomKey() {
+    const bytes = new Uint8Array(24); crypto.getRandomValues(bytes);
+    return [...bytes].map(v => v.toString(16).padStart(2, '0')).join('');
+  }
+
+  function parseInvite(input = location.href) {
+    try {
+      const url = new URL(input, location.href);
+      const params = new URLSearchParams(url.hash.replace(/^#/, ''));
+      const room = params.get('room'), key = params.get('key');
+      const mode = params.get('mode') === 'xtreme' ? 'xtreme' : 'normal';
+      if (!room || !key || !/^[A-Za-z0-9_]{8,100}$/.test(room) || !/^[a-f0-9]{32,128}$/i.test(key)) return null;
+      return { room, key, mode };
+    } catch { return null; }
+  }
+
+  function buildInviteUrl() {
+    if (!state.room || !state.key) return '';
+    const base = location.href.split('#')[0];
+    const hash = new URLSearchParams({ room: state.room, key: state.key, mode: state.mode });
+    return `${base}#${hash.toString()}`;
+  }
+  function syncInviteUrl() {
+    state.inviteUrl = buildInviteUrl();
+    if (ui.inviteUrlText) ui.inviteUrlText.textContent = state.inviteUrl || '—';
+    if (state.room) history.replaceState(null, '', `#${new URLSearchParams({ room: state.room, key: state.key, mode: state.mode })}`);
+  }
+
+  function profile() { return PROFILES[state.mode]; }
+  function audioConstraints() {
+    return { echoCancellation: true, noiseSuppression: state.mode !== 'xtreme', autoGainControl: state.mode !== 'xtreme', channelCount: { ideal: 2 }, sampleRate: { ideal: 48000 } };
+  }
+  function videoConstraints(facing = state.facing, deviceId = '') {
+    const p = profile();
+    const v = { width: { ideal: p.width }, height: { ideal: p.height }, frameRate: { ideal: p.fps, max: p.maxFps }, resizeMode: 'none' };
+    if (deviceId) v.deviceId = { exact: deviceId };
+    else v.facingMode = { ideal: facing };
+    return v;
+  }
+
+  async function enumerateCameras() {
+    try {
+      state.cameras = (await navigator.mediaDevices.enumerateDevices()).filter(d => d.kind === 'videoinput');
+      return state.cameras;
+    } catch { state.cameras = []; return []; }
+  }
+
+  function classifyCamera(label = '') {
+    const l = label.toLowerCase().replace(',', '.');
+    if (/front|facetime|frontal|selfie|user/.test(l)) return 'front';
+    if (/ultra|0\.5|0,5|ultrawide|ultra wide/.test(l)) return 'ultra';
+    if (/tele|telephoto|3x|5x|periscope/.test(l)) return 'tele';
+    return 'main';
+  }
+
+  function formatZoom(z) { return `${String(Math.round(z * 10) / 10).replace('.', ',')}×`; }
+  function currentVideoTrack() { return state.localStream?.getVideoTracks?.()[0] || null; }
+  function currentAudioTrack() { return state.localStream?.getAudioTracks?.()[0] || null; }
+  function trackZoomCapabilities(track = currentVideoTrack()) {
+    try {
