@@ -11,8 +11,8 @@
 
   (async () => {
     try {
-      await load('./app-v10-core.js?v=10');
-      await load('./app-v10-call.js?v=10');
+      await load('./app-v10-core.js?v=13');
+      await load('./app-v10-call.js?v=13');
     } catch (err) {
       console.error(err);
       const toast = document.getElementById('toast');
