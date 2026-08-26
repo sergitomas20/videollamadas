@@ -1,1 +1,191 @@
-<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"><meta name="theme-color" content="#06070b"><meta name="color-scheme" content="dark"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"><meta name="apple-mobile-web-app-title" content="LUMA"><meta name="description" content="Videollamadas privadas P2P con modo XTREME y control avanzado de calidad."><link rel="manifest" href="./manifest.webmanifest"><link rel="icon" href="./icon.svg" type="image/svg+xml"><link rel="apple-touch-icon" href="./icon.svg"><link rel="stylesheet" href="./styles.css"><title>LUMA — Private P2P Video</title></head><body><div class="ambient" aria-hidden="true"><div class="orb orb-a"></div><div class="orb orb-b"></div><div class="orb orb-c"></div><div class="grain"></div></div><div id="app" class="app-shell"><header class="topbar"><button class="brand" id="brandBtn" aria-label="Inicio"><span class="brand-mark"><svg viewBox="0 0 40 40" aria-hidden="true"><path d="M20 4.5 34 12.6v14.8L20 35.5 6 27.4V12.6L20 4.5Z" fill="none" stroke="currentColor" stroke-width="1.4"/><circle cx="20" cy="20" r="7.2" fill="currentColor"/><circle cx="20" cy="20" r="2.6" fill="#090a0f"/></svg></span><span>LUMA</span></button><div class="topbar-actions"><div class="privacy-chip"><span class="pulse-dot"></span><span>PRIVATE P2P</span></div><button class="icon-btn" id="installBtn" title="Instalar app" hidden><svg viewBox="0 0 24 24"><path d="M12 3v12m0 0 4-4m-4 4-4-4M5 18v2h14v-2" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button></div></header><main><section class="view home-view active" id="homeView"><div class="hero-copy"><div class="eyebrow"><span class="spark"></span> Direct. Encrypted. Yours. </div><h1>Closer than<br><span>distance.</span></h1><p class="hero-sub">Una videollamada sin cuentas, sin salas públicas y sin un servidor procesando tu vídeo. Tú, la otra persona y la ruta más directa posible.</p><div class="hero-actions"><button class="primary-btn magnetic" id="createCallBtn"><span class="btn-glow"></span><span class="btn-icon"><svg viewBox="0 0 24 24"><path d="M15.5 8.5 20 6v12l-4.5-2.5V18H4V6h11.5v2.5Z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg></span><span><strong>Nueva llamada</strong><small>Crear enlace privado</small></span></button><button class="secondary-btn" id="openJoinBtn"><svg viewBox="0 0 24 24"><path d="M9 5H5v14h4M13 8l4 4-4 4m4-4H9" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg> Entrar con enlace </button></div><div class="trust-row"><div class="trust-item"><strong>01</strong><span>Sin registro</span></div><div class="trust-line"></div><div class="trust-item"><strong>02</strong><span>WebRTC cifrado</span></div><div class="trust-line"></div><div class="trust-item"><strong>03</strong><span>XTREME ready</span></div></div></div><div class="hero-visual"><div class="signal-ring ring-1"></div><div class="signal-ring ring-2"></div><div class="signal-ring ring-3"></div><div class="phone-card"><div class="phone-glass"></div><div class="phone-top"><span class="mini-live"><i></i> READY</span><span class="mini-quality">4K</span></div><div class="portrait-placeholder"><div class="face-light"></div><svg viewBox="0 0 160 220" aria-hidden="true"><defs><linearGradient id="silhouette" x1="0" x2="1" y1="0" y2="1"><stop offset="0" stop-color="#ced4ff" stop-opacity=".36"/><stop offset="1" stop-color="#7e8cf8" stop-opacity=".08"/></linearGradient></defs><circle cx="80" cy="74" r="39" fill="url(#silhouette)"/><path d="M18 220c6-60 30-92 62-92s56 32 62 92Z" fill="url(#silhouette)"/></svg></div><div class="phone-footer"><div><small>ROUTE</small><strong><span class="route-dot"></span> DIRECT</strong></div><div><small>MODE</small><strong>XTREME</strong></div></div></div><div class="floating-stat stat-one"><span>QUALITY</span><strong>MAX</strong></div><div class="floating-stat stat-two"><span>MEDIA</span><strong>P2P</strong></div></div></section><section class="view prejoin-view" id="prejoinView"><div class="prejoin-grid"><div class="camera-stage glass-panel"><video id="previewVideo" autoplay muted playsinline></video><div class="video-empty" id="videoEmpty"><div class="camera-orbit"><svg viewBox="0 0 24 24"><path d="M15.5 8.5 20 6v12l-4.5-2.5V18H4V6h11.5v2.5Z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg></div><span>Preparando cámara…</span></div><div class="camera-topline"><div class="preview-badge"><span class="pulse-dot"></span> PREVIEW </div><button class="round-control" id="flipCameraBtn" aria-label="Cambiar cámara"><svg viewBox="0 0 24 24"><path d="M7 7h10l-2-2m2 2-2 2M17 17H7l2 2m-2-2 2-2" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg></button></div><div class="camera-bottomline"><div class="actual-capture"><small>CAPTURA REAL</small><strong id="captureSummary">—</strong></div><div class="preview-controls"><button class="round-control active" id="preMicBtn" aria-label="Micrófono"><svg class="mic-on" viewBox="0 0 24 24"><path d="M12 4a3 3 0 0 0-3 3v5a3 3 0 0 0 6 0V7a3 3 0 0 0-3-3Zm-6 8a6 6 0 0 0 12 0M12 18v3m-3 0h6" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg><svg class="mic-off" viewBox="0 0 24 24"><path d="m4 4 16 16M9 9v3a3 3 0 0 0 4.7 2.5M15 11V7a3 3 0 0 0-5.8-1M6 12a6 6 0 0 0 9.7 4.7M18 12a6 6 0 0 1-.5 2.4M12 18v3m-3 0h6" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg></button><button class="round-control active" id="preCamBtn" aria-label="Cámara"><svg class="cam-on" viewBox="0 0 24 24"><path d="M15.5 8.5 20 6v12l-4.5-2.5V18H4V6h11.5v2.5Z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg><svg class="cam-off" viewBox="0 0 24 24"><path d="m4 4 16 16M14.5 6H4v12h11.5v-2.5L20 18V6l-4.5 2.5V11" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg></button></div></div></div><aside class="setup-panel glass-panel"><div class="setup-heading"><span class="eyebrow"><span class="spark"></span> SETUP</span><h2 id="prejoinTitle">Tu llamada está lista.</h2><p id="prejoinSubtitle">Comprueba cámara y micrófono antes de entrar.</p></div><div class="setting-block"><div class="setting-label"><span>Calidad</span><small id="qualityHint">Equilibrio perfecto</small></div><div class="mode-switch"><button class="mode-btn active" data-mode="normal"><span>AUTO</span><small>Adaptativa</small></button><button class="mode-btn xtreme" data-mode="xtreme"><span>XTREME</span><small>Todo al máximo</small></button></div></div><div class="xtreme-card" id="xtremeCard"><div class="xtreme-head"><div><span class="fire-dot"></span><strong>XTREME ENGINE</strong></div><span class="off-label" id="xtremeStatusLabel">OFF</span></div><div class="xtreme-specs"><div><small>VIDEO</small><strong>Hasta 4K · 60</strong></div><div><small>BITRATE</small><strong>Ceiling 60 Mb/s</strong></div><div><small>ROUTE</small><strong>P2P only</strong></div></div><p>Pedimos al navegador el máximo y mostramos abajo lo que realmente ha concedido.</p></div><div class="setting-block"><div class="setting-label"><span>Cámara</span><small id="cameraCount">Detectando…</small></div><div class="select-wrap"><select id="cameraSelect" aria-label="Seleccionar cámara"></select><svg viewBox="0 0 24 24"><path d="m8 10 4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg></div><div class="lens-row" id="lensRow" hidden></div></div><div class="setting-block compact"><div class="setting-label"><span>Conexión</span><small>La ruta que intentaremos usar</small></div><label class="direct-toggle"><div><strong>Solo conexión directa</strong><span>Si necesita relay, no conecta</span></div><input type="checkbox" id="directOnlyToggle"><span class="toggle-ui"></span></label></div><button class="join-btn" id="enterCallBtn"><span id="enterCallText">Entrar a la llamada</span><svg viewBox="0 0 24 24"><path d="M5 12h14m-5-5 5 5-5 5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button><button class="link-btn" id="cancelPrejoinBtn">Cancelar</button></aside></div></section><section class="view call-view" id="callView"><div class="call-canvas"><video id="remoteVideo" autoplay playsinline></video><div class="remote-waiting" id="remoteWaiting"><div class="waiting-radar"><span></span><span></span><span></span><div class="waiting-core"><svg viewBox="0 0 24 24"><path d="M12 8v4l2.5 1.5M12 3a9 9 0 1 0 9 9" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></div></div><h2>Esperando a la otra persona</h2><p>Comparte el enlace. No necesita cuenta ni instalar nada.</p><button class="share-call-btn" id="waitingShareBtn"><svg viewBox="0 0 24 24"><path d="M8.5 12.5 15.5 8m-7 3.5 7 4.5M18 9a3 3 0 1 0 0-6 3 3 0 0 0 0 6ZM6 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6Zm12 6a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z" fill="none" stroke="currentColor" stroke-width="1.7"/></svg> Compartir invitación </button></div><div class="call-shade top"></div><div class="call-shade bottom"></div><div class="call-top"><div class="call-identity"><div class="live-pill"><span class="pulse-dot"></span> LIVE</div><div><strong id="callTitle">Llamada privada</strong><span id="callDuration">00:00</span></div></div><div class="route-pill" id="routePill"><span class="route-dot"></span><div><small>ROUTE</small><strong id="routeText">CONNECTING</strong></div></div></div><div class="local-pip" id="localPip"><video id="localVideo" autoplay muted playsinline></video><div class="pip-label">YOU</div></div><div class="call-bottom"><div class="quality-live" id="qualityLive"><span id="liveModeBadge">AUTO</span><div><strong id="liveResolution">—</strong><small id="liveBitrate">Esperando estadísticas</small></div></div><div class="call-controls"><button class="call-control active" id="callMicBtn" aria-label="Micrófono"><svg class="mic-on" viewBox="0 0 24 24"><path d="M12 4a3 3 0 0 0-3 3v5a3 3 0 0 0 6 0V7a3 3 0 0 0-3-3Zm-6 8a6 6 0 0 0 12 0M12 18v3m-3 0h6" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg><svg class="mic-off" viewBox="0 0 24 24"><path d="m4 4 16 16M9 9v3a3 3 0 0 0 4.7 2.5M15 11V7a3 3 0 0 0-5.8-1M6 12a6 6 0 0 0 9.7 4.7M18 12a6 6 0 0 1-.5 2.4M12 18v3m-3 0h6" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg></button><button class="call-control active" id="callCamBtn" aria-label="Cámara"><svg class="cam-on" viewBox="0 0 24 24"><path d="M15.5 8.5 20 6v12l-4.5-2.5V18H4V6h11.5v2.5Z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg><svg class="cam-off" viewBox="0 0 24 24"><path d="m4 4 16 16M14.5 6H4v12h11.5v-2.5L20 18V6l-4.5 2.5V11" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg></button><button class="call-control" id="callFlipBtn" aria-label="Cambiar cámara"><svg viewBox="0 0 24 24"><path d="M7 7h10l-2-2m2 2-2 2M17 17H7l2 2m-2-2 2-2" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg></button><button class="call-control xtreme-trigger" id="callXtremeBtn" aria-label="XTREME"><span class="tiny-fire"></span> X </button><button class="call-control" id="statsBtn" aria-label="Estadísticas"><svg viewBox="0 0 24 24"><path d="M5 19V9m7 10V5m7 14v-7" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></button><button class="call-control end" id="endCallBtn" aria-label="Colgar"><svg viewBox="0 0 24 24"><path d="M5 14.5c4.7-3.3 9.3-3.3 14 0l-2.2 3-3-1.1-.3-2.1h-3l-.3 2.1-3 1.1-2.2-3Z" fill="currentColor"/></svg></button></div><button class="share-mini" id="shareMiniBtn" aria-label="Compartir llamada"><svg viewBox="0 0 24 24"><path d="M8.5 12.5 15.5 8m-7 3.5 7 4.5M18 9a3 3 0 1 0 0-6 3 3 0 0 0 0 6ZM6 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6Zm12 6a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z" fill="none" stroke="currentColor" stroke-width="1.7"/></svg></button></div></div><aside class="stats-drawer glass-panel" id="statsDrawer"><div class="drawer-head"><div><span class="eyebrow"><span class="spark"></span> LIVE TELEMETRY</span><h3>Lo que está pasando de verdad.</h3></div><button class="icon-btn" id="closeStatsBtn"><svg viewBox="0 0 24 24"><path d="m7 7 10 10M17 7 7 17" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></button></div><div class="hero-stat"><small>TRANSMISIÓN REAL</small><strong id="statResolution">—</strong><span id="statCodec">Esperando flujo…</span></div><div class="stat-grid"><div class="metric-card"><small>BITRATE OUT</small><strong id="statBitrateOut">—</strong></div><div class="metric-card"><small>FPS</small><strong id="statFps">—</strong></div><div class="metric-card"><small>RTT</small><strong id="statRtt">—</strong></div><div class="metric-card"><small>LOSS</small><strong id="statLoss">—</strong></div></div><div class="route-card"><div class="route-visual"><span class="node you">YOU</span><span class="route-beam"></span><span class="node peer">PEER</span></div><div class="route-detail"><span id="statRouteDot" class="status-dot"></span><div><strong id="statRoute">Detectando ruta…</strong><small id="statCandidates">ICE todavía negociando</small></div></div></div><div class="requested-vs-real"><div><small>SOLICITADO</small><strong id="requestedQuality">AUTO</strong></div><div class="compare-arrow">→</div><div><small>REAL</small><strong id="actualQuality">—</strong></div></div><div class="device-note" id="deviceNote"><svg viewBox="0 0 24 24"><path d="M12 8v5m0 3h.01M12 3 2.8 20h18.4L12 3Z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg><p>iOS decide el límite final de cámara y códec. LUMA siempre te muestra el valor real.</p></div></aside></section></main></div><div class="modal-backdrop" id="inviteModal" aria-hidden="true"><div class="invite-sheet glass-panel"><button class="sheet-close" id="closeInviteBtn"><svg viewBox="0 0 24 24"><path d="m7 7 10 10M17 7 7 17" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></button><div class="invite-icon"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></div><span class="eyebrow"><span class="spark"></span> PRIVATE INVITE</span><h3>Trae a alguien contigo.</h3><p>Quien abra este enlace podrá entrar desde el navegador. Sin cuenta. Sin instalar nada.</p><div class="invite-url"><span id="inviteUrlText">—</span><button id="copyInviteBtn">Copiar</button></div><div class="invite-actions"><button class="invite-action primary" id="nativeShareBtn"><svg viewBox="0 0 24 24"><path d="M8.5 12.5 15.5 8m-7 3.5 7 4.5M18 9a3 3 0 1 0 0-6 3 3 0 0 0 0 6ZM6 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6Zm12 6a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z" fill="none" stroke="currentColor" stroke-width="1.7"/></svg> Compartir </button><button class="invite-action" id="emailInviteBtn"><svg viewBox="0 0 24 24"><path d="M4 6h16v12H4V6Zm0 1 8 6 8-6" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg> Email </button></div><small class="invite-security">El secreto de la sala vive dentro del enlace y no se envía al servidor web.</small></div></div><div class="modal-backdrop" id="joinModal" aria-hidden="true"><div class="invite-sheet compact-sheet glass-panel"><button class="sheet-close" id="closeJoinBtn"><svg viewBox="0 0 24 24"><path d="m7 7 10 10M17 7 7 17" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></button><span class="eyebrow"><span class="spark"></span> JOIN</span><h3>Pega una invitación.</h3><p>También puedes abrir directamente el enlace que te hayan enviado.</p><input class="join-input" id="joinLinkInput" type="url" inputmode="url" placeholder="https://…"><button class="join-btn" id="joinFromLinkBtn">Continuar</button></div></div><div class="toast" id="toast"><span class="toast-dot"></span><span id="toastText">Listo</span></div><script src="https://unpkg.com/@vdoninja/sdk@1.5.5/vdoninja-sdk.min.js"></script><script src="./app.js"></script></body></html>
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#06070b">
+  <meta name="color-scheme" content="dark">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="LUMA">
+  <meta name="description" content="Videollamadas privadas P2P con modo XTREME y control avanzado de calidad.">
+  <link rel="manifest" href="./manifest.webmanifest">
+  <link rel="icon" href="./icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="./icon.svg">
+  <link rel="stylesheet" href="./styles.css">
+  <title>LUMA — Private P2P Video</title>
+</head>
+<body>
+  <div class="ambient" aria-hidden="true">
+    <div class="orb orb-a"></div>
+    <div class="orb orb-b"></div>
+    <div class="orb orb-c"></div>
+    <div class="grain"></div>
+  </div>
+
+  <div id="app" class="app-shell">
+    <header class="topbar">
+      <button class="brand" id="brandBtn" aria-label="Inicio">
+        <span class="brand-mark">
+          <svg viewBox="0 0 40 40" aria-hidden="true"><path d="M20 4.5 34 12.6v14.8L20 35.5 6 27.4V12.6L20 4.5Z" fill="none" stroke="currentColor" stroke-width="1.4"/><circle cx="20" cy="20" r="7.2" fill="currentColor"/><circle cx="20" cy="20" r="2.6" fill="#090a0f"/></svg>
+        </span>
+        <span>LUMA</span>
+      </button>
+      <div class="topbar-actions">
+        <div class="privacy-chip"><span class="pulse-dot"></span><span>PRIVATE P2P</span></div>
+        <button class="icon-btn" id="installBtn" title="Instalar app" hidden>
+          <svg viewBox="0 0 24 24"><path d="M12 3v12m0 0 4-4m-4 4-4-4M5 18v2h14v-2" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+      </div>
+    </header>
+
+    <main>
+      <section class="view home-view active" id="homeView">
+        <div class="hero-copy">
+          <div class="eyebrow"><span class="spark"></span> Direct. Encrypted. Yours.</div>
+          <h1>Closer than<br><span>distance.</span></h1>
+          <p class="hero-sub">Una videollamada sin cuentas, sin salas públicas y sin un servidor procesando tu vídeo. Tú, la otra persona y la ruta más directa posible.</p>
+          <div class="hero-actions">
+            <button class="primary-btn magnetic" id="createCallBtn">
+              <span class="btn-glow"></span>
+              <span class="btn-icon"><svg viewBox="0 0 24 24"><path d="M15.5 8.5 20 6v12l-4.5-2.5V18H4V6h11.5v2.5Z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg></span>
+              <span><strong>Nueva llamada</strong><small>Crear enlace privado</small></span>
+            </button>
+            <button class="secondary-btn" id="openJoinBtn">
+              <svg viewBox="0 0 24 24"><path d="M9 5H5v14h4M13 8l4 4-4 4m4-4H9" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              Entrar con enlace
+            </button>
+          </div>
+          <div class="trust-row">
+            <div class="trust-item"><strong>01</strong><span>Sin registro</span></div><div class="trust-line"></div>
+            <div class="trust-item"><strong>02</strong><span>WebRTC cifrado</span></div><div class="trust-line"></div>
+            <div class="trust-item"><strong>03</strong><span>XTREME ready</span></div>
+          </div>
+        </div>
+        <div class="hero-visual">
+          <div class="signal-ring ring-1"></div><div class="signal-ring ring-2"></div><div class="signal-ring ring-3"></div>
+          <div class="phone-card">
+            <div class="phone-glass"></div>
+            <div class="phone-top"><span class="mini-live"><i></i> READY</span><span class="mini-quality">MAX</span></div>
+            <div class="portrait-placeholder"><div class="face-light"></div><svg viewBox="0 0 160 220" aria-hidden="true"><defs><linearGradient id="silhouette" x1="0" x2="1" y1="0" y2="1"><stop offset="0" stop-color="#ced4ff" stop-opacity=".36"/><stop offset="1" stop-color="#7e8cf8" stop-opacity=".08"/></linearGradient></defs><circle cx="80" cy="74" r="39" fill="url(#silhouette)"/><path d="M18 220c6-60 30-92 62-92s56 32 62 92Z" fill="url(#silhouette)"/></svg></div>
+            <div class="phone-footer"><div><small>ROUTE</small><strong><span class="route-dot"></span> DIRECT</strong></div><div><small>MODE</small><strong>XTREME</strong></div></div>
+          </div>
+          <div class="floating-stat stat-one"><span>QUALITY</span><strong>MAX</strong></div>
+          <div class="floating-stat stat-two"><span>MEDIA</span><strong>P2P</strong></div>
+        </div>
+      </section>
+
+      <section class="view prejoin-view" id="prejoinView">
+        <div class="prejoin-grid">
+          <div class="camera-stage glass-panel">
+            <video id="previewVideo" autoplay muted playsinline></video>
+            <div class="video-empty" id="videoEmpty"><div class="camera-orbit"><svg viewBox="0 0 24 24"><path d="M15.5 8.5 20 6v12l-4.5-2.5V18H4V6h11.5v2.5Z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg></div><span>Preparando cámara…</span></div>
+            <div class="camera-topline">
+              <div class="preview-badge"><span class="pulse-dot"></span> PREVIEW</div>
+              <button class="round-control" id="flipCameraBtn" aria-label="Cambiar cámara"><svg viewBox="0 0 24 24"><path d="M7 7h10l-2-2m2 2-2 2M17 17H7l2 2m-2-2 2-2" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+            </div>
+            <div class="camera-bottomline">
+              <div class="actual-capture"><small>CAPTURA REAL</small><strong id="captureSummary">—</strong></div>
+              <div class="preview-controls">
+                <button class="round-control active" id="preMicBtn" aria-label="Micrófono"><svg class="mic-on" viewBox="0 0 24 24"><path d="M12 4a3 3 0 0 0-3 3v5a3 3 0 0 0 6 0V7a3 3 0 0 0-3-3Zm-6 8a6 6 0 0 0 12 0M12 18v3m-3 0h6" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg><svg class="mic-off" viewBox="0 0 24 24"><path d="m4 4 16 16M9 9v3a3 3 0 0 0 4.7 2.5M15 11V7a3 3 0 0 0-5.8-1M6 12a6 6 0 0 0 9.7 4.7M18 12a6 6 0 0 1-.5 2.4M12 18v3m-3 0h6" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg></button>
+                <button class="round-control active" id="preCamBtn" aria-label="Cámara"><svg class="cam-on" viewBox="0 0 24 24"><path d="M15.5 8.5 20 6v12l-4.5-2.5V18H4V6h11.5v2.5Z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg><svg class="cam-off" viewBox="0 0 24 24"><path d="m4 4 16 16M14.5 6H4v12h11.5v-2.5L20 18V6l-4.5 2.5V11" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+              </div>
+            </div>
+          </div>
+
+          <aside class="setup-panel glass-panel">
+            <div class="setup-heading"><span class="eyebrow"><span class="spark"></span> SETUP</span><h2 id="prejoinTitle">Tu llamada está lista.</h2><p id="prejoinSubtitle">Comprueba cámara y micrófono antes de entrar.</p></div>
+            <div class="setting-block">
+              <div class="setting-label"><span>Calidad</span><small id="qualityHint">Equilibrio perfecto</small></div>
+              <div class="mode-switch"><button class="mode-btn active" data-mode="normal"><span>AUTO</span><small>Adaptativa</small></button><button class="mode-btn xtreme" data-mode="xtreme"><span>XTREME</span><small>Todo al máximo</small></button></div>
+            </div>
+            <div class="xtreme-card" id="xtremeCard">
+              <div class="xtreme-head"><div><span class="fire-dot"></span><strong>XTREME ENGINE</strong></div><span class="off-label" id="xtremeStatusLabel">OFF</span></div>
+              <div class="xtreme-specs"><div><small>VIDEO</small><strong>Máximo cámara · hasta 120 FPS</strong></div><div><small>BITRATE</small><strong>Ceiling 1 Gb/s</strong></div><div><small>ROUTE</small><strong>P2P only</strong></div></div>
+              <p>Pedimos a iOS la máxima captura, FPS y bitrate disponibles. LUMA nunca oculta lo que realmente ha concedido el navegador.</p>
+            </div>
+            <div class="setting-block camera-auto-block">
+              <div class="setting-label"><span>Cámara</span><small id="cameraCount">Detectando…</small></div>
+              <div class="camera-auto-row"><div><strong>Control directo durante la llamada</strong><span>Frontal/trasera, lentes y zoom sin menús.</span></div><span class="camera-auto-badge">LIVE</span></div>
+              <select id="cameraSelect" aria-label="Seleccionar cámara" hidden></select><div class="lens-row" id="lensRow" hidden></div>
+            </div>
+            <div class="setting-block compact">
+              <div class="setting-label"><span>Conexión</span><small>La ruta que intentaremos usar</small></div>
+              <label class="direct-toggle"><div><strong>Solo conexión directa</strong><span>Si necesita relay, no conecta</span></div><input type="checkbox" id="directOnlyToggle"><span class="toggle-ui"></span></label>
+            </div>
+            <button class="join-btn" id="enterCallBtn"><span id="enterCallText">Entrar a la llamada</span><svg viewBox="0 0 24 24"><path d="M5 12h14m-5-5 5 5-5 5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+            <button class="link-btn" id="cancelPrejoinBtn">Cancelar</button>
+          </aside>
+        </div>
+      </section>
+
+      <section class="view call-view" id="callView">
+        <div class="call-canvas">
+          <video id="remoteVideo" autoplay playsinline></video>
+          <div class="remote-waiting" id="remoteWaiting"><div class="waiting-radar"><span></span><span></span><span></span><div class="waiting-core"><svg viewBox="0 0 24 24"><path d="M12 8v4l2.5 1.5M12 3a9 9 0 1 0 9 9" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></div></div><h2>Esperando a la otra persona</h2><p>Comparte el enlace. No necesita cuenta ni instalar nada. Cuando conecte, el vídeo viajará por la ruta WebRTC más directa disponible.</p><button class="share-call-btn" id="waitingShareBtn"><svg viewBox="0 0 24 24"><path d="M8.5 12.5 15.5 8m-7 3.5 7 4.5M18 9a3 3 0 1 0 0-6 3 3 0 0 0 0 6ZM6 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6Zm12 6a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z" fill="none" stroke="currentColor" stroke-width="1.7"/></svg> Compartir invitación</button></div>
+          <div class="call-shade top"></div><div class="call-shade bottom"></div>
+          <div class="call-top"><div class="call-identity"><div class="live-pill"><span class="pulse-dot"></span> LIVE</div><div><strong id="callTitle">Llamada privada</strong><span id="callDuration">00:00</span></div></div><div class="route-pill" id="routePill"><span class="route-dot"></span><div><small>ROUTE</small><strong id="routeText">CONNECTING</strong></div></div></div>
+          <div class="local-pip" id="localPip"><video id="localVideo" autoplay muted playsinline></video><div class="pip-label">YOU</div></div>
+          <div class="camera-hud" id="cameraHud"><div class="camera-hud-side"><span id="activeCameraSide">FRONT</span><small id="activeCameraName">Cámara frontal</small></div><div class="call-lens-row" id="callLensRow"></div><div class="zoom-readout" id="zoomReadout">1×</div></div>
+          <div class="call-bottom">
+            <div class="quality-live" id="qualityLive"><span id="liveModeBadge">AUTO</span><div><strong id="liveResolution">—</strong><small id="liveBitrate">Esperando estadísticas</small></div></div>
+            <div class="call-controls">
+              <button class="call-control active" id="callMicBtn" aria-label="Micrófono"><svg class="mic-on" viewBox="0 0 24 24"><path d="M12 4a3 3 0 0 0-3 3v5a3 3 0 0 0 6 0V7a3 3 0 0 0-3-3Zm-6 8a6 6 0 0 0 12 0M12 18v3m-3 0h6" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg><svg class="mic-off" viewBox="0 0 24 24"><path d="m4 4 16 16M9 9v3a3 3 0 0 0 4.7 2.5M15 11V7a3 3 0 0 0-5.8-1M6 12a6 6 0 0 0 9.7 4.7M18 12a6 6 0 0 1-.5 2.4M12 18v3m-3 0h6" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg></button>
+              <button class="call-control active" id="callCamBtn" aria-label="Cámara"><svg class="cam-on" viewBox="0 0 24 24"><path d="M15.5 8.5 20 6v12l-4.5-2.5V18H4V6h11.5v2.5Z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg><svg class="cam-off" viewBox="0 0 24 24"><path d="m4 4 16 16M14.5 6H4v12h11.5v-2.5L20 18V6l-4.5 2.5V11" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+              <button class="call-control" id="callFlipBtn" aria-label="Cambiar cámara"><svg viewBox="0 0 24 24"><path d="M7 7h10l-2-2m2 2-2 2M17 17H7l2 2m-2-2 2-2" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+              <button class="call-control xtreme-trigger" id="callXtremeBtn" aria-label="XTREME"><span class="tiny-fire"></span>X</button>
+              <button class="call-control" id="statsBtn" aria-label="Estadísticas"><svg viewBox="0 0 24 24"><path d="M5 19V9m7 10V5m7 14v-7" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></button>
+              <button class="call-control end" id="endCallBtn" aria-label="Colgar"><svg viewBox="0 0 24 24"><path d="M5 14.5c4.7-3.3 9.3-3.3 14 0l-2.2 3-3-1.1-.3-2.1h-3l-.3 2.1-3 1.1-2.2-3Z" fill="currentColor"/></svg></button>
+            </div>
+            <button class="share-mini" id="shareMiniBtn" aria-label="Compartir llamada"><svg viewBox="0 0 24 24"><path d="M8.5 12.5 15.5 8m-7 3.5 7 4.5M18 9a3 3 0 1 0 0-6 3 3 0 0 0 0 6ZM6 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6Zm12 6a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z" fill="none" stroke="currentColor" stroke-width="1.7"/></svg></button>
+          </div>
+        </div>
+
+        <aside class="stats-drawer glass-panel" id="statsDrawer">
+          <div class="drawer-head"><div><span class="eyebrow"><span class="spark"></span> LIVE TELEMETRY</span><h3>Lo que está pasando de verdad.</h3></div><button class="icon-btn" id="closeStatsBtn"><svg viewBox="0 0 24 24"><path d="m7 7 10 10M17 7 7 17" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></button></div>
+          <div class="hero-stat"><small>TRANSMISIÓN REAL</small><strong id="statResolution">—</strong><span id="statCodec">Esperando flujo…</span></div>
+          <div class="stat-grid"><div class="metric-card"><small>BITRATE OUT</small><strong id="statBitrateOut">—</strong></div><div class="metric-card"><small>FPS</small><strong id="statFps">—</strong></div><div class="metric-card"><small>RTT</small><strong id="statRtt">—</strong></div><div class="metric-card"><small>LOSS</small><strong id="statLoss">—</strong></div></div>
+          <div class="session-section">
+            <div class="section-caption"><span>SESSION</span><small>Acumulado desde que empezó la llamada</small></div>
+            <div class="session-grid">
+              <div class="session-metric"><small>DATOS CONSUMIDOS</small><strong id="statDataTotal">0 MB</strong><span id="statDataBreakdown">↑ 0 MB · ↓ 0 MB</span></div>
+              <div class="session-metric"><small>BITRATE TX · MIN / MAX</small><strong id="statBitrateRange">—</strong><span>Solo mientras hay vídeo fluyendo</span></div>
+              <div class="session-metric"><small>LATENCIA · MIN / MAX</small><strong id="statRttRange">—</strong><span id="statRttAverage">Media —</span></div>
+              <div class="session-metric"><small>INTERRUPCIONES</small><strong id="statInterruptions">0</strong><span>Congelaciones y pérdidas de ruta</span></div>
+            </div>
+            <div class="health-card" id="healthCard"><div class="health-copy"><small>STABILITY DIAGNOSTIC</small><strong id="statHealth">Estable</strong><p id="statBottleneck">Sin cuello de botella detectado.</p></div><div class="health-score" id="statHealthScore">100</div><div class="health-meter"><span id="statHealthBar"></span></div></div>
+            <div class="incident-card"><div><small>ÚLTIMO INCIDENTE</small><strong id="statLastIncident">Sin cortes detectados.</strong></div><span class="incident-count" id="statIncidentCount">0</span></div>
+          </div>
+          <div class="route-card"><div class="route-visual"><span class="node you">YOU</span><span class="route-beam"></span><span class="node peer">PEER</span></div><div class="route-detail"><span id="statRouteDot" class="status-dot"></span><div><strong id="statRoute">Detectando ruta…</strong><small id="statCandidates">ICE todavía negociando</small></div></div></div>
+          <div class="requested-vs-real"><div><small>SOLICITADO</small><strong id="requestedQuality">AUTO</strong></div><div class="compare-arrow">→</div><div><small>REAL</small><strong id="actualQuality">—</strong></div></div>
+          <div class="device-note" id="deviceNote"><svg viewBox="0 0 24 24"><path d="M12 8v5m0 3h.01M12 3 2.8 20h18.4L12 3Z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg><p>iOS decide el límite final de cámara y códec. LUMA siempre te muestra el valor real.</p></div>
+        </aside>
+      </section>
+    </main>
+  </div>
+
+  <div class="modal-backdrop" id="inviteModal" aria-hidden="true">
+    <div class="invite-sheet glass-panel">
+      <button class="sheet-close" id="closeInviteBtn"><svg viewBox="0 0 24 24"><path d="m7 7 10 10M17 7 7 17" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></button>
+      <div class="invite-icon"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></div>
+      <span class="eyebrow"><span class="spark"></span> PRIVATE INVITE</span>
+      <h3>Trae a alguien contigo.</h3><p>Quien abra este enlace podrá entrar desde el navegador. Sin cuenta. Sin instalar nada.</p>
+      <div class="invite-url"><span id="inviteUrlText">—</span><button id="copyInviteBtn">Copiar</button></div>
+      <div class="invite-actions"><button class="invite-action primary" id="nativeShareBtn"><svg viewBox="0 0 24 24"><path d="M8.5 12.5 15.5 8m-7 3.5 7 4.5M18 9a3 3 0 1 0 0-6 3 3 0 0 0 0 6ZM6 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6Zm12 6a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z" fill="none" stroke="currentColor" stroke-width="1.7"/></svg>Compartir</button><button class="invite-action" id="emailInviteBtn"><svg viewBox="0 0 24 24"><path d="M4 6h16v12H4V6Zm0 1 8 6 8-6" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg>Email</button></div>
+      <small class="invite-security">El secreto de la sala vive dentro del enlace y no se envía al servidor web.</small>
+    </div>
+  </div>
+
+  <div class="modal-backdrop" id="joinModal" aria-hidden="true">
+    <div class="invite-sheet compact-sheet glass-panel">
+      <button class="sheet-close" id="closeJoinBtn"><svg viewBox="0 0 24 24"><path d="m7 7 10 10M17 7 7 17" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></button>
+      <span class="eyebrow"><span class="spark"></span> JOIN</span><h3>Pega una invitación.</h3><p>También puedes abrir directamente el enlace que te hayan enviado.</p>
+      <input class="join-input" id="joinLinkInput" type="url" inputmode="url" placeholder="https://…"><button class="join-btn" id="joinFromLinkBtn">Continuar</button>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"><span class="toast-dot"></span><span id="toastText">Listo</span></div>
+  <script src="https://unpkg.com/@vdoninja/sdk@1.5.5/vdoninja-sdk.min.js"></script>
+  <script src="./app.js?v=3"></script>
+</body>
+</html>
