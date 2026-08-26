@@ -1,0 +1,19 @@
+{
+  "name": "LUMA — Private P2P Video",
+  "short_name": "LUMA",
+  "description": "Videollamadas privadas P2P con modo XTREME.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#05060a",
+  "theme_color": "#06070b",
+  "orientation": "any",
+  "icons": [
+    {
+      "src": "./icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
