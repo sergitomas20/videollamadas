@@ -1,0 +1,137 @@
+      } catch {}
+    }
+    return false;
+  }
+
+  function discoverStreamIds(detail) {
+    const found = new Set();
+    const visit = (v) => {
+      if (!v) return;
+      if (typeof v === 'string') { if (/^[A-Za-z0-9_-]{4,200}$/.test(v)) found.add(v); return; }
+      if (Array.isArray(v)) { v.forEach(visit); return; }
+      if (typeof v === 'object') {
+        if (typeof v.streamID === 'string') found.add(v.streamID);
+        if (typeof v.streamId === 'string') found.add(v.streamId);
+        for (const k of ['listing','peers','streams','streamIDs','data']) if (v[k]) visit(v[k]);
+      }
+    };
+    visit(detail); return [...found];
+  }
+
+  async function viewRemoteStream(streamID) {
+    if (!streamID || streamID === state.streamID || state.viewed.has(streamID) || !state.sdk) return;
+    state.viewed.add(streamID);
+    try { await state.sdk.view(streamID, { audio: true, video: true, label: 'LUMA' }); }
+    catch (err) { state.viewed.delete(streamID); console.warn('No se pudo ver stream remoto', streamID, err); }
+  }
+
+  function setRoute(kind, detail = '') {
+    if (ui.routeText) ui.routeText.textContent = kind;
+    ui.routePill?.classList.toggle('direct', kind === 'DIRECTA');
+    ui.routePill?.classList.toggle('relay', kind === 'RELAY');
+    ui.routePill?.classList.toggle('failed', kind === 'FALLO');
+    if (ui.statRoute) ui.statRoute.textContent = kind === 'DIRECTA' ? 'Conexión directa P2P' : kind === 'RELAY' ? 'Tráfico pasando por relay' : kind === 'FALLO' ? 'No hay ruta compatible' : 'Negociando ruta…';
+    if (detail && ui.statCandidates) ui.statCandidates.textContent = detail;
+  }
+
+  function markRemoteConnected(connected) {
+    ui.remoteWaiting?.classList.toggle('hidden', connected);
+    ui.callMedia?.classList.toggle('is-waiting', !connected);
+  }
+
+  function bindSdkEvents() {
+    const sdk = state.sdk;
+    const listingHandler = ev => discoverStreamIds(ev.detail).forEach(viewRemoteStream);
+    sdk.addEventListener?.('listing', listingHandler);
+    sdk.addEventListener?.('peerListing', listingHandler);
+    sdk.addEventListener?.('track', ev => {
+      const track = ev.detail?.track; if (!track) return;
+      if (!state.remoteStream.getTracks().some(t => t.id === track.id)) state.remoteStream.addTrack(track);
+      ui.remoteVideo.srcObject = state.remoteStream;
+      ui.remoteVideo.play?.().catch(() => {});
+      markRemoteConnected(true);
+    });
+    sdk.addEventListener?.('peerConnected', () => { setRoute('DIRECTA'); setTimeout(tuneSenders, 250); });
+    sdk.addEventListener?.('peerDisconnected', () => { markRemoteConnected(false); setRoute('ESPERANDO'); });
+    sdk.addEventListener?.('relayEscalated', () => setRoute('RELAY'));
+    sdk.addEventListener?.('relayRestored', () => setRoute('DIRECTA'));
+    sdk.addEventListener?.('connectionFailed', () => { setRoute('FALLO'); recordIncident('No se pudo mantener la ruta de red.'); });
+    const dataHandler = ev => {
+      let data = ev.detail?.data ?? ev.detail ?? ev.data;
+      if (typeof data === 'string') try { data = JSON.parse(data); } catch {}
+      if (data?.type === 'luma-mode' && (data.mode === 'normal' || data.mode === 'xtreme') && !state.host) {
+        setMode(data.mode, { recapture: true, remote: true, broadcast: false });
+        showToast(`El anfitrión ha activado ${PROFILES[data.mode].label}`);
+      }
+    };
+    sdk.addEventListener?.('dataReceived', dataHandler);
+    sdk.addEventListener?.('data', dataHandler);
+    sdk.addEventListener?.('error', ev => console.warn('SDK:', ev.detail || ev));
+  }
+
+  async function tuneSenders() {
+    const p = profile();
+    for (const pc of state.pcs) {
+      for (const sender of pc.getSenders?.() || []) {
+        if (sender.track?.kind !== 'video' || !sender.getParameters || !sender.setParameters) continue;
+        try {
+          const params = sender.getParameters(); if (!params.encodings?.length) params.encodings = [{}];
+          for (const enc of params.encodings) {
+            enc.maxBitrate = p.bitrate;
+            if (state.mode === 'xtreme') { enc.scaleResolutionDownBy = 1; enc.maxFramerate = p.maxFps; }
+          }
+          try { params.degradationPreference = state.mode === 'xtreme' ? 'maintain-resolution' : 'balanced'; } catch {}
+          await sender.setParameters(params);
+        } catch (err) { console.warn('No se pudieron ajustar parámetros del sender', err); }
+      }
+    }
+  }
+
+  async function startCall() {
+    if (state.entering) return;
+    if (!state.localStream) { showToast('No puedo entrar sin cámara y micrófono', 'error'); return; }
+    state.entering = true; ui.enterCallBtn.disabled = true; ui.enterCallText.textContent = 'Cargando motor…';
+    try {
+      if (!(await loadSdk())) throw new Error('No se pudo cargar VDO.Ninja SDK');
+      ui.enterCallText.textContent = 'Conectando…';
+      state.directOnly = state.mode === 'xtreme' ? true : !!ui.directOnlyToggle?.checked;
+      state.streamID = `${state.host ? 'host' : 'guest'}_${randomId()}`;
+      state.remoteStream = new MediaStream(); ui.remoteVideo.srcObject = state.remoteStream; state.viewed.clear();
+      state.sdk = new window.VDONinjaSDK({ password: state.key, debug: false, turnServers: state.directOnly ? false : null, autoRelay: !state.directOnly, forceTURN: false, autoRecover: true, label: state.host ? 'Anfitrión' : 'Invitado' });
+      bindSdkEvents();
+      await state.sdk.connect();
+      await state.sdk.joinRoom({ room: state.room, password: state.key });
+      await state.sdk.publish(state.localStream, { streamID: state.streamID, room: state.room, password: state.key, label: state.host ? 'Anfitrión' : 'Invitado' });
+      state.active = true; state.entering = false; state.connectedAt = Date.now(); resetSessionStats();
+      setView('call'); markRemoteConnected(false); installPinch(ui.callMedia); updateCameraUi(); setRoute('CONECTANDO');
+      startDuration(); startStats(); acquireWakeLock(); await tuneSenders();
+    } catch (err) {
+      console.error(err); state.entering = false; ui.enterCallBtn.disabled = false; ui.enterCallText.textContent = state.host ? 'Iniciar llamada' : 'Entrar a la llamada';
+      setRoute('FALLO'); showToast(state.directOnly ? 'No se pudo crear una ruta P2P directa' : 'No se pudo iniciar la llamada', 'error');
+    }
+  }
+
+  function startDuration() {
+    clearInterval(state.durationTimer);
+    const tick = () => {
+      const seconds = Math.max(0, Math.floor((Date.now() - state.connectedAt) / 1000));
+      const h = Math.floor(seconds / 3600), m = Math.floor((seconds % 3600) / 60), s = seconds % 60;
+      ui.callDuration.textContent = h ? `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}` : `${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+    };
+    tick(); state.durationTimer = setInterval(tick, 1000);
+  }
+
+  async function acquireWakeLock() { try { if ('wakeLock' in navigator) state.wakeLock = await navigator.wakeLock.request('screen'); } catch {} }
+  async function releaseWakeLock() { try { await state.wakeLock?.release?.(); } catch {} state.wakeLock = null; }
+
+  function formatRate(n) {
+    if (!Number.isFinite(n)) return '—';
+    if (n >= 1e9) return `${(n / 1e9).toFixed(2)} Gb/s`;
+    if (n >= 1e6) return `${(n / 1e6).toFixed(n >= 1e7 ? 1 : 2)} Mb/s`;
+    if (n >= 1e3) return `${Math.round(n / 1e3)} kb/s`;
+    return `${Math.round(n)} b/s`;
+  }
+  function formatBytes(n) {
+    if (!Number.isFinite(n) || n <= 0) return '0 MB';
+    if (n >= 1073741824) return `${(n / 1073741824).toFixed(2)} GB`;
+    if (n >= 1048576) return `${(n / 1048576).toFixed(n > 104857600 ? 0 : 1)} MB`;
