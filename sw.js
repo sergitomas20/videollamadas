@@ -1,5 +1,5 @@
-const CACHE = "luma-v7";
-const PARTS = ["./v6.1.txt", "./v6.2.txt", "./v6.3.txt", "./v6.4.txt", "./v7-preview.js"];
+const CACHE = "luma-v8";
+const PARTS = ["./v6.1.txt", "./v6.2.txt", "./v6.3.txt", "./v6.4.txt", "./v7-preview.js", "./v8-camera-switch.js"];
 const STYLE_PARTS = ["./v6.css", "./v7-preview.css"];
 
 async function networkText(url) {
@@ -53,7 +53,7 @@ self.addEventListener("install", event => {
       await cache.put(appURL, await combinedJavaScript(appURL));
       await cache.put(cssURL, await combinedStyles(cssURL));
     } catch (error) {
-      console.warn("LUMA V7: no se pudo precalcular el paquete combinado", error);
+      console.warn("LUMA V8: no se pudo precalcular el paquete combinado", error);
     }
     await self.skipWaiting();
   })());
