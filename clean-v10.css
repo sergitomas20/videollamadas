@@ -1,0 +1,130 @@
+/* v3 — camera-first in-call controls */
+html,body{overscroll-behavior:none}
+.call-view.active,.call-canvas{touch-action:none;-webkit-user-select:none;user-select:none}
+.camera-auto-row{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:13px 14px;border:1px solid var(--line);border-radius:15px;background:rgba(4,5,9,.32)}
+.camera-auto-row>div{display:flex;flex-direction:column;gap:4px;min-width:0}.camera-auto-row strong{font-size:9px}.camera-auto-row span{font-size:8px;color:#727789;line-height:1.4}.camera-auto-badge{flex:0 0 auto!important;height:28px;padding:0 9px;border-radius:9px;display:grid;place-items:center;background:rgba(92,242,173,.08);border:1px solid rgba(92,242,173,.16);color:#8ef6c5!important;font-size:7px!important;font-weight:850;letter-spacing:.12em}
+.camera-hud{position:absolute;z-index:6;left:50%;bottom:max(104px,calc(env(safe-area-inset-bottom) + 84px));transform:translateX(-50%);display:flex;align-items:center;gap:10px;padding:7px 9px;border:1px solid rgba(255,255,255,.1);border-radius:999px;background:rgba(5,6,10,.52);backdrop-filter:blur(22px);-webkit-backdrop-filter:blur(22px);box-shadow:0 14px 45px rgba(0,0,0,.28);max-width:calc(100vw - 30px)}
+.camera-hud-side{height:34px;min-width:70px;padding:0 10px;display:flex;justify-content:center;flex-direction:column;border-right:1px solid rgba(255,255,255,.08)}.camera-hud-side span{font-size:7px;font-weight:900;letter-spacing:.14em;color:#aaa5ff}.camera-hud-side small{font-size:6.5px;color:#6f7485;white-space:nowrap;max-width:120px;overflow:hidden;text-overflow:ellipsis}
+.call-lens-row{display:flex;align-items:center;gap:4px;overflow-x:auto;scrollbar-width:none;max-width:min(54vw,390px)}.call-lens-row::-webkit-scrollbar{display:none}.call-lens-row[hidden]{display:none}.call-lens-row .lens-btn{flex:0 0 auto;width:36px;height:36px;border-radius:50%;border:1px solid rgba(255,255,255,.08);background:transparent;color:#a7abba;font-size:8px;font-weight:750;cursor:pointer;transition:.2s var(--ease)}.call-lens-row .lens-btn.active{background:white;color:#08090d;border-color:white;box-shadow:0 4px 16px rgba(255,255,255,.18)}
+.zoom-readout{height:34px;min-width:39px;padding:0 9px;border-left:1px solid rgba(255,255,255,.08);display:grid;place-items:center;color:#d7daea;font-size:8px;font-weight:850}
+@media(max-width:720px){.camera-hud{bottom:max(91px,calc(env(safe-area-inset-bottom) + 77px));gap:5px;padding:5px 6px}.camera-hud-side{display:none}.call-lens-row{max-width:calc(100vw - 95px);gap:2px}.call-lens-row .lens-btn{width:34px;height:34px}.zoom-readout{min-width:36px;padding:0 6px}.camera-auto-block{display:none}.call-control[aria-label="Cambiar cámara"]{background:rgba(255,255,255,.09)}}
+
+/* =========================================================
+   LUMA v5 — llamada premium, estadísticas TX/RX y fullscreen
+   ========================================================= */
+html,body{max-width:100%;overflow-x:hidden}
+
+/* Invitación: siempre contenida en el viewport real de iOS. */
+.modal-backdrop{
+  box-sizing:border-box!important;
+  width:100%!important;
+  max-width:100%!important;
+  min-width:0!important;
+  overflow:hidden!important;
+  padding:max(14px,env(safe-area-inset-top)) max(14px,env(safe-area-inset-right)) max(14px,env(safe-area-inset-bottom)) max(14px,env(safe-area-inset-left))!important;
+}
+.invite-sheet,.compact-sheet{
+  box-sizing:border-box!important;
+  inline-size:min(480px,calc(100vw - 28px))!important;
+  width:min(480px,calc(100vw - 28px))!important;
+  max-inline-size:calc(100vw - 28px)!important;
+  max-width:calc(100vw - 28px)!important;
+  min-width:0!important;
+  margin-inline:auto!important;
+  overflow-x:hidden!important;
+}
+.compact-sheet{inline-size:min(430px,calc(100vw - 28px))!important;width:min(430px,calc(100vw - 28px))!important}
+.invite-sheet>*{min-width:0!important;max-width:100%!important}
+.invite-url{width:100%!important;min-width:0!important;display:flex;overflow:hidden;padding-left:12px}
+.invite-url>span{min-width:0!important;flex:1 1 0!important;max-width:none!important;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.invite-url-action{flex:0 0 auto!important;align-self:stretch;border:0;border-left:1px solid var(--line);background:rgba(255,255,255,.04);color:#c9ccda;padding:0 12px;display:grid;place-items:center;cursor:pointer;font-size:9px}
+.whatsapp-action{width:48px;padding:0;color:#9ff2c6;background:rgba(61,214,125,.075)}
+.whatsapp-action svg{width:20px;height:20px}
+.wide-share{width:100%;margin-top:10px}
+
+/* El menú de cámaras ya no existe visualmente. La cámara se controla con gesto. */
+.camera-auto-block,.call-lens-row{display:none!important}
+.camera-hud{gap:0;padding:6px 8px;pointer-events:none}
+.camera-hud-side{border-right:1px solid rgba(255,255,255,.08);padding-right:12px;margin-right:8px;min-width:126px}
+.camera-hud-side span{color:#c7c2ff}
+.zoom-readout{border-left:0;min-width:46px;font-size:11px;color:white}
+
+/* Fuera de pantalla completa: vídeo + telemetría siempre visible. */
+.call-view.active{overflow:hidden}
+.call-view.active:not(.media-only) .call-canvas{right:394px}
+.call-view.active:not(.media-only) .stats-drawer{
+  display:block;position:absolute;left:auto;right:10px;top:10px;bottom:10px;width:374px;max-height:none;
+  transform:none!important;opacity:1!important;pointer-events:auto!important;padding:22px;border-radius:28px;overflow:auto;
+}
+.drawer-head{margin-bottom:15px}.drawer-head h3{margin-top:10px}
+.direction-card{border:1px solid var(--line);border-radius:20px;padding:16px;background:rgba(4,5,9,.34);margin-top:10px}
+.tx-card{background:radial-gradient(circle at 0 0,rgba(141,130,255,.12),transparent 52%),rgba(4,5,9,.34)}
+.rx-card{background:radial-gradient(circle at 0 0,rgba(107,231,255,.08),transparent 52%),rgba(4,5,9,.34)}
+.direction-title{display:flex;align-items:center;gap:10px;margin-bottom:13px}.direction-arrow{width:30px;height:30px;border-radius:10px;display:grid;place-items:center;background:rgba(255,255,255,.055);border:1px solid var(--line);font-size:16px}.direction-title>div{display:flex;flex-direction:column;gap:2px}.direction-title small{color:#74798c;font-size:7px;letter-spacing:.15em}.direction-title strong{font-size:10px}
+.direction-hero{display:flex;align-items:baseline;justify-content:space-between;gap:10px;padding-bottom:12px;border-bottom:1px solid var(--line)}.direction-hero strong{font-size:22px;letter-spacing:-.04em}.direction-hero span{font-size:8px;color:#73788b}
+.direction-grid{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-top:10px}.direction-grid>div{padding:10px;border-radius:13px;background:rgba(255,255,255,.025);display:flex;flex-direction:column;gap:4px}.direction-grid small,.limitation-row small{font-size:6.5px;color:#696e81;letter-spacing:.13em}.direction-grid strong{font-size:12px}.limitation-row{margin-top:8px;padding:9px 10px;border-radius:12px;background:rgba(255,255,255,.025);display:flex;justify-content:space-between;align-items:center;gap:10px}.limitation-row strong{font-size:9px}
+.session-grid{grid-template-columns:1fr 1fr}.session-metric:last-child{grid-column:1/-1}
+
+/* Pantalla completa / modo solo imagen. */
+.fullscreen-control .fs-exit{display:none}.media-only .fullscreen-control .fs-enter{display:none}.media-only .fullscreen-control .fs-exit{display:block}
+.call-view.media-only .call-canvas{inset:0!important;right:0!important;position:absolute!important;height:auto!important}
+.call-view.media-only .stats-drawer,.call-view.media-only .call-top,.call-view.media-only .local-pip,.call-view.media-only .camera-hud,.call-view.media-only .quality-live,.call-view.media-only .share-mini{display:none!important}
+.call-view.media-only .call-bottom{inset:0!important;left:0!important;right:0!important;bottom:0!important;display:block!important;pointer-events:none}
+.call-view.media-only .call-controls{position:absolute;right:max(16px,env(safe-area-inset-right));top:max(16px,calc(env(safe-area-inset-top) + 8px));padding:0;border:0;background:transparent;box-shadow:none;backdrop-filter:none;pointer-events:none}
+.call-view.media-only .call-controls>*:not(.fullscreen-control){display:none!important}
+.call-view.media-only .fullscreen-control{display:grid!important;pointer-events:auto;opacity:1;transition:opacity .25s;background:rgba(5,6,10,.48);backdrop-filter:blur(16px)}
+.call-view.media-only:not(.controls-peek) .fullscreen-control{opacity:0;pointer-events:none}
+.call-view.media-only #remoteVideo{object-fit:contain;background:#000}
+
+/* Móvil: la llamada normal se convierte en vídeo arriba + estadísticas debajo. */
+@media(max-width:900px){
+  .call-view.active:not(.media-only){overflow-y:auto!important;overflow-x:hidden!important;-webkit-overflow-scrolling:touch}
+  .call-view.active:not(.media-only) .call-canvas{position:relative!important;inset:auto!important;right:auto!important;width:100%;height:58dvh;min-height:430px;max-height:680px}
+  .call-view.active:not(.media-only) .stats-drawer{position:relative!important;inset:auto!important;left:auto!important;right:auto!important;top:auto!important;bottom:auto!important;width:calc(100% - 16px)!important;max-width:none!important;max-height:none!important;margin:8px;padding:18px;border-radius:24px;transform:none!important;opacity:1!important}
+  .camera-hud{bottom:max(88px,calc(env(safe-area-inset-bottom) + 72px));max-width:calc(100vw - 28px)}
+  .camera-hud-side{display:flex!important;min-width:118px;max-width:180px}.camera-hud-side small{max-width:145px}
+  .session-grid{grid-template-columns:1fr 1fr}
+}
+@media(max-width:560px){
+  .invite-sheet,.compact-sheet{inline-size:calc(100vw - 20px)!important;width:calc(100vw - 20px)!important;max-inline-size:calc(100vw - 20px)!important;max-width:calc(100vw - 20px)!important;padding:22px 18px!important;border-radius:24px!important}
+  .invite-sheet h3{font-size:28px!important;padding-right:38px;overflow-wrap:anywhere}
+  .invite-url-action{padding:0 9px}.whatsapp-action{width:45px}
+  .call-view.active:not(.media-only) .call-canvas{height:56dvh;min-height:400px}
+  .camera-hud{bottom:86px}.camera-hud-side{min-width:105px;max-width:140px}.camera-hud-side small{max-width:115px}.zoom-readout{min-width:40px}
+  .direction-grid,.session-grid{grid-template-columns:1fr 1fr}.session-metric:last-child{grid-column:1/-1}
+}
+
+
+/* LUMA v6 — modal iPhone hardening. The parent owns the available width;
+   the card never measures itself against a stale visual viewport. */
+.modal-backdrop{
+  left:0!important;right:0!important;top:0!important;bottom:0!important;
+  width:auto!important;max-width:none!important;min-width:0!important;
+  display:flex!important;align-items:center!important;justify-content:center!important;
+  overflow-x:hidden!important;overflow-y:auto!important;
+  padding:max(12px,env(safe-area-inset-top)) max(12px,env(safe-area-inset-right)) max(12px,env(safe-area-inset-bottom)) max(12px,env(safe-area-inset-left))!important;
+}
+.invite-sheet,.compact-sheet{
+  flex:0 1 480px!important;
+  width:100%!important;
+  max-width:480px!important;
+  min-width:0!important;
+  margin:auto!important;
+  box-sizing:border-box!important;
+  overflow-x:hidden!important;
+}
+.compact-sheet{flex-basis:430px!important;max-width:430px!important}
+.invite-sheet>*{min-width:0!important;max-width:100%!important}
+.invite-url{width:100%!important;max-width:100%!important;min-width:0!important;overflow:hidden!important}
+.invite-url>span{flex:1 1 0!important;width:0!important;min-width:0!important;max-width:none!important;overflow:hidden!important;text-overflow:ellipsis!important;white-space:nowrap!important}
+@media(max-width:560px){
+  .modal-backdrop{padding-left:max(10px,env(safe-area-inset-left))!important;padding-right:max(10px,env(safe-area-inset-right))!important}
+  .invite-sheet,.compact-sheet{flex-basis:auto!important;width:100%!important;max-width:100%!important;padding:22px 18px!important}
+}
+
+/* LUMA clean v10 — gesto de zoom visible y fiable */
+.camera-stage,.call-canvas{touch-action:none!important;-webkit-user-select:none!important;user-select:none!important;-webkit-touch-callout:none!important}
+.preview-zoom-hud{position:absolute;z-index:9;left:50%;bottom:22px;transform:translateX(-50%);min-width:132px;max-width:calc(100% - 190px);padding:8px 14px 9px;border:1px solid rgba(255,255,255,.14);border-radius:16px;background:rgba(5,6,10,.58);-webkit-backdrop-filter:blur(20px) saturate(1.25);backdrop-filter:blur(20px) saturate(1.25);box-shadow:0 12px 36px rgba(0,0,0,.28);display:flex;flex-direction:column;align-items:center;gap:3px;pointer-events:none;transition:.18s var(--ease)}
+.preview-zoom-hud.active{transform:translateX(-50%) scale(1.08);background:rgba(14,15,24,.86);border-color:rgba(153,143,255,.4)}
+.preview-zoom-hud strong{font-size:15px;line-height:1;font-weight:850;color:#fff}.preview-zoom-hud small{font-size:7px;color:#8e93a6;letter-spacing:.04em;white-space:nowrap}
+@media(max-width:560px){.preview-zoom-hud{bottom:18px;min-width:116px;max-width:155px;padding:7px 11px 8px}.preview-zoom-hud strong{font-size:14px}.preview-zoom-hud small{font-size:6.5px;max-width:135px;overflow:hidden;text-overflow:ellipsis}}
