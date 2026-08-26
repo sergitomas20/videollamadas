@@ -1,0 +1,125 @@
+      state.pinch.pendingZoom = Math.max(.5, Math.min(10, state.pinch.startZoom * scale));
+      applyZoom(state.pinch.pendingZoom, false);
+    };
+    const finish = () => {
+      if (!state.pinch.active) return;
+      const z = state.pinch.pendingZoom; state.pinch.active = false;
+      applyZoom(z, true); ui.previewZoomHud?.classList.remove('gesture');
+    };
+    surface.addEventListener('gesturestart', ev => { if (begin('gesture')) ev.preventDefault(); }, { passive: false });
+    surface.addEventListener('gesturechange', ev => { if (state.pinch.active && state.pinch.source === 'gesture') { ev.preventDefault(); move(ev.scale || 1); } }, { passive: false });
+    surface.addEventListener('gestureend', ev => { if (state.pinch.active && state.pinch.source === 'gesture') { ev.preventDefault(); finish(); } }, { passive: false });
+    surface.addEventListener('touchstart', ev => { if (state.pinch.safariGesture || ev.touches.length !== 2) return; const d = distance(ev.touches); if (begin('touch', d)) ev.preventDefault(); }, { passive: false });
+    surface.addEventListener('touchmove', ev => { if (!state.pinch.active || state.pinch.source !== 'touch' || ev.touches.length !== 2) return; ev.preventDefault(); move(distance(ev.touches) / Math.max(1, state.pinch.startDistance)); }, { passive: false });
+    surface.addEventListener('touchend', ev => { if (state.pinch.active && state.pinch.source === 'touch' && ev.touches.length < 2) finish(); }, { passive: true });
+  }
+
+  async function setMode(mode, { recapture = true, broadcast = false, remote = false } = {}) {
+    if (!PROFILES[mode]) return;
+    if (!state.host && !remote && state.room) return; // guest follows host
+    state.mode = mode;
+    $$('.mode-btn').forEach(b => b.classList.toggle('active', b.dataset.mode === mode));
+    if (ui.xtremeCard) ui.xtremeCard.hidden = mode !== 'xtreme';
+    if (ui.qualityHint) ui.qualityHint.textContent = mode === 'xtreme' ? 'Máximo potencial disponible' : 'Adaptativa y estable';
+    if (ui.callXtremeBtn) ui.callXtremeBtn.classList.toggle('active', mode === 'xtreme');
+    if (ui.requestedQuality) ui.requestedQuality.textContent = mode === 'xtreme' ? 'EXTREMO · máximo disponible' : 'AUTO · adaptativa';
+    if (state.view === 'prejoin') {
+      state.directOnly = mode === 'xtreme' ? true : !!ui.directOnlyToggle?.checked;
+      if (ui.directOnlyToggle) { ui.directOnlyToggle.checked = state.directOnly; ui.directOnlyToggle.disabled = mode === 'xtreme' || !state.host; }
+    }
+    syncInviteUrl();
+    if (recapture && state.localStream) {
+      const oldVideo = currentVideoTrack();
+      try {
+        const { stream } = await acquireMedia({ facing: state.facing, deviceId: state.lastDevice[state.facing], preserveAudio: true });
+        const newVideo = stream.getVideoTracks()[0];
+        await replacePublishedVideoTrack(newVideo, oldVideo);
+        if (oldVideo && oldVideo !== newVideo) oldVideo.stop();
+      } catch (err) { console.warn('No se pudo recapturar al cambiar de modo', err); }
+      if (state.active) await tuneSenders();
+    }
+    if (broadcast && state.active && state.sdk?.sendData) {
+      try { state.sdk.sendData({ type: 'luma-mode', mode }); } catch {}
+    }
+  }
+
+  async function enterPrejoin({ host, room, key, mode }) {
+    resetCallRuntime(false);
+    state.host = host; state.room = room; state.key = key; state.mode = mode || 'normal'; state.facing = 'user'; state.logicalZoom = 1;
+    syncInviteUrl();
+    ui.prejoinTitle.textContent = host ? 'Tu llamada está lista.' : 'Te están invitando.';
+    ui.prejoinSubtitle.textContent = host ? 'Comprueba cámara y micrófono antes de entrar.' : 'El anfitrión ha elegido la calidad. Comprueba cámara y micrófono y entra.';
+    ui.enterCallBtn.disabled = false;
+    ui.enterCallText.textContent = host ? 'Iniciar llamada' : 'Entrar a la llamada';
+    $$('.mode-btn').forEach(b => b.disabled = !host);
+    if (ui.callXtremeBtn) ui.callXtremeBtn.disabled = !host;
+    setView('prejoin');
+    await setMode(state.mode, { recapture: false, remote: !host });
+    try {
+      await acquireMedia({ facing: 'user' });
+      installPinch(ui.cameraStage);
+    } catch (err) {
+      console.error(err); showToast('Necesito permisos de cámara y micrófono', 'error');
+    }
+  }
+
+  function createCall() { enterPrejoin({ host: true, room: randomId('room_'), key: randomKey(), mode: 'normal' }); }
+
+  function toggleMic() {
+    state.micEnabled = !state.micEnabled;
+    state.localStream?.getAudioTracks().forEach(t => t.enabled = state.micEnabled);
+    [ui.preMicBtn, ui.callMicBtn].forEach(b => b?.classList.toggle('active', state.micEnabled));
+  }
+  function toggleCamera() {
+    state.camEnabled = !state.camEnabled;
+    state.localStream?.getVideoTracks().forEach(t => t.enabled = state.camEnabled);
+    [ui.preCamBtn, ui.callCamBtn].forEach(b => b?.classList.toggle('active', state.camEnabled));
+  }
+
+  async function nativeShare() {
+    syncInviteUrl();
+    if (navigator.share) {
+      try { await navigator.share({ title: 'Videollamada privada · LUMA', text: 'Únete a mi videollamada privada.', url: state.inviteUrl }); return; }
+      catch (err) { if (err?.name === 'AbortError') return; }
+    }
+    setModal(ui.inviteModal, true);
+  }
+  async function copyInvite() {
+    try { await navigator.clipboard.writeText(state.inviteUrl); showToast('Enlace copiado'); }
+    catch { showToast('No se ha podido copiar', 'error'); }
+  }
+  function whatsappInvite() {
+    const text = encodeURIComponent(`Únete a mi videollamada privada LUMA:\n${state.inviteUrl}`);
+    location.href = `https://wa.me/?text=${text}`;
+  }
+
+  function resetSessionStats() {
+    state.prevStats.clear(); state.byteBaselines.clear(); state.freezeBaselines.clear();
+    state.session = { sent: 0, recv: 0, txMin: Infinity, txMax: 0, rxMin: Infinity, rxMax: 0, rttMin: Infinity, rttMax: 0, rttSum: 0, rttN: 0, cuts: 0, last: 'Sin cortes detectados.' };
+    const ids = ['statTxBitrate','statTxFps','statTxLoss','statTxJitter','statRxBitrate','statRxFps','statRxLoss','statRxJitter','statTxBitrateRange','statRxBitrateRange','statRttRange'];
+    ids.forEach(id => { if (ui[id]) ui[id].textContent = '—'; });
+    if (ui.statDataTotal) ui.statDataTotal.textContent = '0 MB';
+    if (ui.statDataBreakdown) ui.statDataBreakdown.textContent = '↑ 0 MB · ↓ 0 MB';
+    if (ui.statInterruptions) ui.statInterruptions.textContent = '0';
+    if (ui.statIncidentCount) ui.statIncidentCount.textContent = '0';
+    if (ui.statLastIncident) ui.statLastIncident.textContent = 'Sin cortes detectados.';
+  }
+
+  async function loadSdk() {
+    if (typeof window.VDONinjaSDK === 'function') return true;
+    const sources = [
+      'https://cdn.jsdelivr.net/npm/@vdoninja/sdk@1.5.5/vdoninja-sdk.min.js',
+      'https://unpkg.com/@vdoninja/sdk@1.5.5/vdoninja-sdk.min.js',
+      'https://cdn.jsdelivr.net/gh/steveseguin/ninjasdk@latest/vdoninja-sdk.min.js'
+    ];
+    for (const src of sources) {
+      try {
+        await new Promise((resolve, reject) => {
+          const script = document.createElement('script'); let done = false;
+          const timer = setTimeout(() => { if (!done) { done = true; script.remove(); reject(new Error('timeout')); } }, 8000);
+          script.src = src; script.async = true;
+          script.onload = () => { if (!done) { done = true; clearTimeout(timer); resolve(); } };
+          script.onerror = () => { if (!done) { done = true; clearTimeout(timer); script.remove(); reject(new Error('load error')); } };
+          document.head.appendChild(script);
+        });
+        if (typeof window.VDONinjaSDK === 'function') return true;
