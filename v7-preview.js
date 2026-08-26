@@ -2,7 +2,6 @@
   'use strict';
 
   const $ = (s) => document.querySelector(s);
-  const $$ = (s) => [...document.querySelectorAll(s)];
 
   let startDistance = 0;
   let startZoom = 1;
@@ -33,7 +32,7 @@
   function currentFacing(track = localTrack()) {
     const settings = track?.getSettings?.() || {};
     if (settings.facingMode) return settings.facingMode;
-    return /front|frontal|facetime|user/i.test(track?.label || '') ? 'user' : 'environment';
+    return /front|frontal|facetime|user|selfie/i.test(track?.label || '') ? 'user' : 'environment';
   }
 
   function fmtZoom(z) {
@@ -43,13 +42,14 @@
   }
 
   function inferredZoom(track = localTrack()) {
-    const settings = track?.getSettings?.() || {};
-    if (Number.isFinite(settings.zoom)) return settings.zoom;
     const label = (track?.label || '').toLowerCase();
+    // Physical lens identity wins over a track zoom value of 1.0.
     if (/ultra|0[,.]5|ultrawide|ultra wide/.test(label)) return 0.5;
     const teleMatch = label.match(/(?:tele|\b)([235])\s*x/);
     if (teleMatch) return Number(teleMatch[1]);
     if (/tele/.test(label)) return 3;
+    const settings = track?.getSettings?.() || {};
+    if (Number.isFinite(settings.zoom)) return settings.zoom;
     return 1;
   }
 
@@ -82,7 +82,7 @@
       hud.classList.add('front');
     } else {
       if (value) value.textContent = fmtZoom(zoom);
-      if (hint) hint.textContent = zoom < 0.85 ? 'Ultra gran angular' : zoom >= 2.4 ? 'Teleobjetivo' : 'Cámara principal';
+      if (hint) hint.textContent = zoom < 0.85 ? 'Ultra gran angular' : zoom >= 2.35 ? 'Teleobjetivo' : 'Cámara principal';
       hud.classList.remove('front');
     }
   }
@@ -108,7 +108,7 @@
   }
 
   function isFrontOption(option) {
-    return /front|frontal|facetime|user/i.test(option?.textContent || '');
+    return /front|frontal|facetime|user|selfie/i.test(option?.textContent || '');
   }
 
   function lensType(option) {
@@ -150,7 +150,7 @@
     setTimeout(() => {
       switching = false;
       renderHud();
-    }, 650);
+    }, 700);
   }
 
   async function setPreviewZoom(value, final = false) {
@@ -158,14 +158,21 @@
       renderHud();
       return;
     }
+
+    pendingZoom = Math.max(0.5, Math.min(5, value));
     const caps = getZoomCaps();
-    if (caps) {
-      await applyTrackZoom(value);
-    } else {
-      pendingZoom = Math.max(0.5, Math.min(5, value));
-      renderHud(pendingZoom);
-      if (final) await switchFallbackLens(pendingZoom);
+    const insideContinuousRange = caps && pendingZoom >= caps.min - 0.02 && pendingZoom <= caps.max + 0.02;
+
+    if (insideContinuousRange) {
+      await applyTrackZoom(pendingZoom);
+      if (final) lastRequestedBand = pendingZoom < 0.82 ? 'ultra' : pendingZoom >= 2.35 ? 'tele' : 'main';
+      return;
     }
+
+    // Outside the zoom range of the current physical lens: show the intended
+    // zoom while pinching, then hop to the matching physical rear camera.
+    renderHud(pendingZoom);
+    if (final) await switchFallbackLens(pendingZoom);
   }
 
   function installPreviewPinch() {
@@ -191,9 +198,9 @@
       if (e.touches.length !== 2 || !startDistance) return;
       e.preventDefault();
       const caps = getZoomCaps();
-      const min = caps?.min ?? 0.5;
-      const max = caps?.max ?? 5;
-      pendingZoom = Math.max(min, Math.min(max, startZoom * (distance(e.touches) / startDistance)));
+      const logicalMin = Math.min(0.5, caps?.min ?? 0.5);
+      const logicalMax = Math.max(5, caps?.max ?? 5);
+      pendingZoom = Math.max(logicalMin, Math.min(logicalMax, startZoom * (distance(e.touches) / startDistance)));
       cancelAnimationFrame(raf);
       raf = requestAnimationFrame(() => setPreviewZoom(pendingZoom, false));
     }, { passive: false });
@@ -212,10 +219,11 @@
     const refresh = () => setTimeout(() => {
       lastRequestedBand = '';
       renderHud();
-    }, 120);
+    }, 140);
     video.addEventListener('loadedmetadata', refresh);
     video.addEventListener('playing', refresh);
-    $('#flipCameraBtn')?.addEventListener('click', () => setTimeout(refresh, 500), true);
+    $('#flipCameraBtn')?.addEventListener('click', () => setTimeout(refresh, 550), true);
+    window.addEventListener('luma-camera-side-changed', () => setTimeout(refresh, 100));
     navigator.mediaDevices?.addEventListener?.('devicechange', refresh);
   }
 
