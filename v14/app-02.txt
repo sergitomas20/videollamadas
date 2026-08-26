@@ -1,0 +1,152 @@
+      const z = track?.getCapabilities?.()?.zoom;
+      return z && Number.isFinite(z.min) && Number.isFinite(z.max) ? z : null;
+    } catch { return null; }
+  }
+  function currentZoom() {
+    const z = currentVideoTrack()?.getSettings?.()?.zoom;
+    return Number.isFinite(z) ? z : state.logicalZoom;
+  }
+
+  function updateCameraUi() {
+    const user = state.facing === 'user';
+    ui.cameraStage?.classList.toggle('facing-user', user);
+    ui.callMedia?.classList.toggle('facing-user', user);
+    if (ui.activeCameraSide) ui.activeCameraSide.textContent = user ? 'FRONTAL' : state.logicalZoom < .82 ? '0,5×' : state.logicalZoom >= 2.4 ? 'TELE' : 'TRASERA';
+    if (ui.zoomReadout) ui.zoomReadout.textContent = user ? '—' : formatZoom(state.logicalZoom);
+    if (ui.previewZoomValue) ui.previewZoomValue.textContent = user ? 'FRONTAL' : formatZoom(state.logicalZoom);
+    ui.previewZoomHud?.classList.toggle('front', user);
+  }
+
+  function updateCaptureSummary() {
+    const st = currentVideoTrack()?.getSettings?.() || {};
+    if (!ui.captureSummary) return;
+    ui.captureSummary.textContent = st.width && st.height ? `${st.width}×${st.height}${st.frameRate ? ` · ${Math.round(st.frameRate)} FPS` : ''}` : 'Cámara activa';
+  }
+
+  async function acquireMedia({ facing = state.facing, deviceId = '', preserveAudio = false } = {}) {
+    if (!navigator.mediaDevices?.getUserMedia) throw new Error('getUserMedia no disponible');
+    const oldStream = state.localStream;
+    const oldAudio = preserveAudio ? currentAudioTrack() : null;
+    let stream;
+    const get = (constraints) => navigator.mediaDevices.getUserMedia(constraints);
+    try {
+      if (oldAudio) {
+        const videoOnly = await get({ video: videoConstraints(facing, deviceId), audio: false });
+        stream = new MediaStream([videoOnly.getVideoTracks()[0], oldAudio]);
+      } else {
+        stream = await get({ video: videoConstraints(facing, deviceId), audio: audioConstraints() });
+      }
+    } catch (firstErr) {
+      // Safari may reject high FPS/resolution or an exact device. Fall back without breaking the flow.
+      const fallbackVideo = { width: { ideal: 1920 }, height: { ideal: 1080 }, frameRate: { ideal: 30 }, facingMode: { ideal: facing } };
+      if (oldAudio) {
+        const videoOnly = await get({ video: fallbackVideo, audio: false });
+        stream = new MediaStream([videoOnly.getVideoTracks()[0], oldAudio]);
+      } else {
+        stream = await get({ video: fallbackVideo, audio: audioConstraints() });
+      }
+      if (state.mode === 'xtreme') showToast('iOS ha reducido la captura máxima disponible', 'warn');
+    }
+
+    state.localStream = stream;
+    state.facing = facing;
+    const vt = stream.getVideoTracks()[0];
+    const actualDevice = vt?.getSettings?.()?.deviceId;
+    if (actualDevice) state.lastDevice[facing] = actualDevice;
+    stream.getAudioTracks().forEach(t => t.enabled = state.micEnabled);
+    stream.getVideoTracks().forEach(t => t.enabled = state.camEnabled);
+    if (ui.previewVideo) ui.previewVideo.srcObject = stream;
+    if (ui.localVideo) ui.localVideo.srcObject = stream;
+    if (ui.videoEmpty) ui.videoEmpty.style.display = 'none';
+    await enumerateCameras();
+    state.logicalZoom = facing === 'user' ? 1 : Math.max(.5, Number(vt?.getSettings?.()?.zoom) || 1);
+    updateCameraUi(); updateCaptureSummary();
+    return { stream, oldStream };
+  }
+
+  async function replacePublishedVideoTrack(newTrack, oldTrack) {
+    if (!state.active || !newTrack || !oldTrack) return;
+    let replaced = false;
+    try {
+      if (state.sdk?.replaceTrack) { await state.sdk.replaceTrack(oldTrack, newTrack); replaced = true; }
+    } catch (err) { console.warn('SDK replaceTrack falló, usando fallback RTCPeerConnection', err); }
+    if (!replaced) {
+      for (const pc of state.pcs) {
+        const sender = pc.getSenders?.().find(s => s.track === oldTrack || s.track?.kind === 'video');
+        if (sender?.replaceTrack) try { await sender.replaceTrack(newTrack); } catch {}
+      }
+    }
+  }
+
+  async function flipCamera() {
+    if (!state.localStream) return;
+    const target = state.facing === 'user' ? 'environment' : 'user';
+    const oldVideo = currentVideoTrack();
+    try {
+      const preferred = state.lastDevice[target] || '';
+      const { stream } = await acquireMedia({ facing: target, deviceId: preferred, preserveAudio: true });
+      const newVideo = stream.getVideoTracks()[0];
+      await replacePublishedVideoTrack(newVideo, oldVideo);
+      if (oldVideo && oldVideo !== newVideo) oldVideo.stop();
+      state.facing = target; state.logicalZoom = 1;
+      updateCameraUi(); updateCaptureSummary();
+      if (state.active) await tuneSenders();
+    } catch (err) {
+      console.error(err); showToast('No se ha podido cambiar de cámara', 'error');
+    }
+  }
+
+  async function switchPhysicalLens(targetKind, requestedZoom) {
+    if (state.facing !== 'environment') return false;
+    await enumerateCameras();
+    const candidates = state.cameras.filter(c => classifyCamera(c.label) !== 'front');
+    const target = candidates.find(c => classifyCamera(c.label) === targetKind);
+    if (!target) return false;
+    const oldVideo = currentVideoTrack();
+    if (target.deviceId && target.deviceId === oldVideo?.getSettings?.()?.deviceId) return false;
+    try {
+      const { stream } = await acquireMedia({ facing: 'environment', deviceId: target.deviceId, preserveAudio: true });
+      const newVideo = stream.getVideoTracks()[0];
+      await replacePublishedVideoTrack(newVideo, oldVideo);
+      if (oldVideo && oldVideo !== newVideo) oldVideo.stop();
+      state.logicalZoom = targetKind === 'ultra' ? .5 : targetKind === 'tele' ? Math.max(3, requestedZoom) : 1;
+      updateCameraUi(); updateCaptureSummary();
+      if (state.active) await tuneSenders();
+      return true;
+    } catch { return false; }
+  }
+
+  async function applyZoom(next, final = false) {
+    if (state.facing !== 'environment') return;
+    next = Math.max(.5, Math.min(10, next));
+    state.logicalZoom = next; updateCameraUi();
+    const track = currentVideoTrack(), caps = trackZoomCapabilities(track);
+    if (caps && next >= caps.min - .01 && next <= caps.max + .01) {
+      try {
+        const z = Math.max(caps.min, Math.min(caps.max, next));
+        await track.applyConstraints({ advanced: [{ zoom: z }] });
+        state.logicalZoom = Number(track.getSettings?.()?.zoom) || z;
+        updateCameraUi(); return;
+      } catch {}
+    }
+    if (!final) return;
+    const kind = next < .82 ? 'ultra' : next >= 2.4 ? 'tele' : 'main';
+    const switched = await switchPhysicalLens(kind, next);
+    if (!switched && caps) {
+      const z = Math.max(caps.min, Math.min(caps.max, next));
+      try { await track.applyConstraints({ advanced: [{ zoom: z }] }); state.logicalZoom = z; } catch {}
+    }
+    updateCameraUi();
+  }
+
+  function installPinch(surface) {
+    if (!surface || surface.dataset.pinchReady) return;
+    surface.dataset.pinchReady = '1'; surface.style.touchAction = 'none';
+    const distance = touches => Math.hypot(touches[0].clientX - touches[1].clientX, touches[0].clientY - touches[1].clientY);
+    const begin = (source, startDistance = 0) => {
+      if (state.facing !== 'environment') return false;
+      state.pinch = { active: true, source, startDistance, startZoom: currentZoom(), pendingZoom: currentZoom(), safariGesture: source === 'gesture' };
+      ui.previewZoomHud?.classList.add('gesture'); return true;
+    };
+    const move = (scale) => {
+      if (!state.pinch.active) return;
