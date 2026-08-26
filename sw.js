@@ -1,6 +1,6 @@
-const CACHE = "luma-v6";
-const PARTS = ["./v6.1.txt", "./v6.2.txt", "./v6.3.txt", "./v6.4.txt"];
-const V6_CSS = "./v6.css";
+const CACHE = "luma-v7";
+const PARTS = ["./v6.1.txt", "./v6.2.txt", "./v6.3.txt", "./v6.4.txt", "./v7-preview.js"];
+const STYLE_PARTS = ["./v6.css", "./v7-preview.css"];
 
 async function networkText(url) {
   const response = await fetch(url, { cache: "no-store" });
@@ -13,7 +13,7 @@ async function combinedJavaScript(url) {
     networkText(url),
     ...PARTS.map(path => networkText(new URL(path, self.location.href)))
   ]);
-  return new Response(base + parts.join(""), {
+  return new Response(base + "\n" + parts.join("\n"), {
     status: 200,
     headers: {
       "Content-Type": "application/javascript; charset=utf-8",
@@ -23,11 +23,11 @@ async function combinedJavaScript(url) {
 }
 
 async function combinedStyles(url) {
-  const [base, patch] = await Promise.all([
+  const [base, ...parts] = await Promise.all([
     networkText(url),
-    networkText(new URL(V6_CSS, self.location.href))
+    ...STYLE_PARTS.map(path => networkText(new URL(path, self.location.href)))
   ]);
-  return new Response(base + "\n" + patch, {
+  return new Response(base + "\n" + parts.join("\n"), {
     status: 200,
     headers: {
       "Content-Type": "text/css; charset=utf-8",
@@ -39,14 +39,21 @@ async function combinedStyles(url) {
 self.addEventListener("install", event => {
   event.waitUntil((async () => {
     const cache = await caches.open(CACHE);
-    await cache.addAll(["./", "./index.html", "./manifest.webmanifest", "./icon.svg", V6_CSS, ...PARTS]);
+    await cache.addAll([
+      "./",
+      "./index.html",
+      "./manifest.webmanifest",
+      "./icon.svg",
+      ...PARTS,
+      ...STYLE_PARTS
+    ]);
     try {
       const appURL = new URL("./app.js", self.location.href);
       const cssURL = new URL("./styles.css", self.location.href);
       await cache.put(appURL, await combinedJavaScript(appURL));
       await cache.put(cssURL, await combinedStyles(cssURL));
     } catch (error) {
-      console.warn("LUMA V6: no se pudo precalcular el paquete combinado", error);
+      console.warn("LUMA V7: no se pudo precalcular el paquete combinado", error);
     }
     await self.skipWaiting();
   })());
