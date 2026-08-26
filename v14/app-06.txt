@@ -1,0 +1,85 @@
+    score = Math.max(0, Math.min(100, score));
+    set(ui.statHealthScore, String(Math.round(score))); set(ui.statHealth, score >= 90 ? 'Excelente' : score >= 72 ? 'Estable' : score >= 50 ? 'Bajo presión' : 'Inestable'); set(ui.statBottleneck, diagnosis); if (ui.statHealthBar) ui.statHealthBar.style.width = `${score}%`;
+  }
+
+  function startStats() { clearInterval(state.statsTimer); state.statsTimer = setInterval(() => collectStats().catch(() => {}), 1000); collectStats().catch(() => {}); }
+
+  async function toggleFullscreen() {
+    state.mediaOnly = !state.mediaOnly;
+    ui.callView.classList.toggle('media-only', state.mediaOnly);
+    ui.callView.classList.toggle('controls-hidden', state.mediaOnly);
+    ui.fullscreenBtn.textContent = state.mediaOnly ? '↙' : '⛶';
+    if (state.mediaOnly) {
+      try { await ui.callView.requestFullscreen?.({ navigationUI: 'hide' }); } catch {}
+    } else {
+      try { if (document.fullscreenElement) await document.exitFullscreen?.(); } catch {}
+    }
+  }
+
+  async function endCall() {
+    if (state.entering) return;
+    state.active = false; state.entering = false;
+    clearInterval(state.durationTimer); clearInterval(state.statsTimer);
+    try { await state.sdk?.stopPublishing?.(); } catch {}
+    for (const id of state.viewed) try { await state.sdk?.stopViewing?.(id); } catch {}
+    try { await state.sdk?.disconnect?.(); } catch {}
+    state.sdk = null; state.viewed.clear(); state.pcs.clear();
+    state.localStream?.getTracks().forEach(t => t.stop()); state.localStream = null;
+    state.remoteStream?.getTracks().forEach(t => t.stop()); state.remoteStream = new MediaStream();
+    if (ui.previewVideo) ui.previewVideo.srcObject = null; if (ui.localVideo) ui.localVideo.srcObject = null; if (ui.remoteVideo) ui.remoteVideo.srcObject = state.remoteStream;
+    await releaseWakeLock();
+    state.mediaOnly = false; ui.callView.classList.remove('media-only', 'controls-hidden'); ui.fullscreenBtn.textContent = '⛶';
+    setModal(ui.inviteModal, false); setModal(ui.joinModal, false); try { history.replaceState(null, '', location.pathname + location.search); } catch {}
+    state.room = ''; state.key = ''; state.inviteUrl = ''; state.host = false; ui.enterCallBtn.disabled = false; setView('home');
+  }
+
+  function cancelPrejoin() {
+    state.localStream?.getTracks().forEach(t => t.stop()); state.localStream = null;
+    if (ui.previewVideo) ui.previewVideo.srcObject = null; if (ui.localVideo) ui.localVideo.srcObject = null;
+    if (ui.videoEmpty) ui.videoEmpty.style.display = '';
+    try { history.replaceState(null, '', location.pathname + location.search); } catch {} state.room = ''; state.key = ''; state.host = false; setView('home');
+  }
+
+  function resetCallRuntime(stopTracks = true) {
+    clearInterval(state.durationTimer); clearInterval(state.statsTimer); state.entering = false; state.active = false; state.mediaOnly = false;
+    if (stopTracks) { state.localStream?.getTracks().forEach(t => t.stop()); state.localStream = null; }
+    state.remoteStream = new MediaStream(); state.sdk = null; state.streamID = ''; state.viewed.clear(); state.pcs.clear(); state.micEnabled = true; state.camEnabled = true;
+    [ui.preMicBtn, ui.callMicBtn, ui.preCamBtn, ui.callCamBtn].forEach(b => b?.classList.add('active'));
+    ui.callView?.classList.remove('media-only','controls-hidden'); ui.callMedia?.classList.add('is-waiting');
+  }
+
+  function bindUi() {
+    ui.brandBtn.addEventListener('click', () => state.active ? endCall() : cancelPrejoin());
+    ui.createCallBtn.addEventListener('click', createCall);
+    ui.openJoinBtn.addEventListener('click', () => setModal(ui.joinModal, true));
+    ui.closeJoinBtn.addEventListener('click', () => setModal(ui.joinModal, false));
+    ui.joinFromLinkBtn.addEventListener('click', () => {
+      const parsed = parseInvite(ui.joinLinkInput.value.trim());
+      if (!parsed) return showToast('El enlace no es válido', 'error');
+      setModal(ui.joinModal, false); enterPrejoin({ host: false, ...parsed });
+    });
+    ui.flipCameraBtn.addEventListener('click', flipCamera); ui.callFlipBtn.addEventListener('click', flipCamera);
+    ui.preMicBtn.addEventListener('click', toggleMic); ui.callMicBtn.addEventListener('click', toggleMic);
+    ui.preCamBtn.addEventListener('click', toggleCamera); ui.callCamBtn.addEventListener('click', toggleCamera);
+    $$('.mode-btn').forEach(btn => btn.addEventListener('click', () => setMode(btn.dataset.mode, { recapture: true, broadcast: false })));
+    ui.directOnlyToggle.addEventListener('change', () => { if (state.mode !== 'xtreme' && state.host) state.directOnly = ui.directOnlyToggle.checked; });
+    ui.enterCallBtn.addEventListener('click', startCall); ui.cancelPrejoinBtn.addEventListener('click', cancelPrejoin);
+    ui.callXtremeBtn.addEventListener('click', () => { if (!state.host) return showToast('El modo lo controla el anfitrión', 'warn'); setMode(state.mode === 'xtreme' ? 'normal' : 'xtreme', { recapture: true, broadcast: true }); });
+    ui.fullscreenBtn.addEventListener('click', toggleFullscreen); ui.endCallBtn.addEventListener('click', endCall);
+    [ui.waitingShareBtn, ui.shareMiniBtn, ui.nativeShareBtn].forEach(b => b.addEventListener('click', nativeShare));
+    ui.closeInviteBtn.addEventListener('click', () => setModal(ui.inviteModal, false)); ui.copyInviteBtn.addEventListener('click', copyInvite); ui.whatsappInviteBtn.addEventListener('click', whatsappInvite);
+    [ui.inviteModal, ui.joinModal].forEach(m => m.addEventListener('click', ev => { if (ev.target === m) setModal(m, false); }));
+    document.addEventListener('keydown', ev => { if (ev.key === 'Escape') { setModal(ui.inviteModal, false); setModal(ui.joinModal, false); } });
+    document.addEventListener('fullscreenchange', () => { if (!document.fullscreenElement && state.mediaOnly) { state.mediaOnly = false; ui.callView.classList.remove('media-only','controls-hidden'); ui.fullscreenBtn.textContent = '⛶'; } });
+    window.addEventListener('unhandledrejection', ev => console.warn('Promesa no controlada:', ev.reason));
+  }
+
+  async function boot() {
+    bindUi(); installPinch(ui.cameraStage); installPinch(ui.callMedia); resetSessionStats();
+    const parsed = parseInvite();
+    if (parsed) await enterPrejoin({ host: false, ...parsed }); else setView('home');
+    window.LUMA_TEST = { state, ui, setMode, flipCamera, toggleMic, toggleCamera, startCall, endCall, enterPrejoin, cancelPrejoin, parseInvite, buildInviteUrl, applyZoom, collectStats, markRemoteConnected };
+  }
+
+  boot().catch(err => { console.error(err); showToast('LUMA no ha podido iniciarse', 'error'); });
+})();
